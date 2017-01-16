@@ -2930,10 +2930,6 @@ static BOOL appBackgrounded = NO;
 #pragma mark MPNotificationControllerDelegate
 - (void)receivedUserNotification:(MParticleUserNotification *)userNotification {
     switch (userNotification.command) {
-        case MPUserNotificationCommandAlertUserLocalTime:
-            [self.notificationController scheduleNotification:userNotification];
-            break;
-            
         case MPUserNotificationCommandConfigRefresh:
             [self requestConfig:nil];
             break;
