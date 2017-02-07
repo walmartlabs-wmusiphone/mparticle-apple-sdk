@@ -30,14 +30,14 @@
 #import "MPKitContainer.h"
 #import "MPKitFilter.h"
 #import "MPKitInstanceValidator.h"
-#import "MPNetworkPerformance.h"
+#import "MPNetworkPerformanceFactory.h"
+#import "MPNetworkPerformanceMeasurementProtocol.h"
 #import "MPNotificationController.h"
 #import "MPPersistenceController.h"
 #import "MPSegment.h"
 #import "MPSession.h"
 #import "MPStateMachine.h"
 #import "MPUserSegments+Setters.h"
-#import "NSURLSession+mParticle.h"
 #import "NSUserDefaults+mParticle.h"
 #import "MPConvertJS.h"
 
@@ -242,7 +242,24 @@ NSString *const kMPStateKey = @"state";
 }
 
 - (BOOL)measuringNetworkPerformance {
-    return [NSURLSession methodsSwizzled];
+    BOOL measuringPerformance = NO;
+    
+#if defined(MP_NETWORK_PERFORMANCE_MEASUREMENT)
+    Class NSURLSessionClass = NSClassFromString(@"NSURLSession");
+    if (NSURLSessionClass) {
+        SEL selector = NSSelectorFromString(@"methodsSwizzled");
+        if ([NSURLSessionClass respondsToSelector:selector]) {
+            NSMethodSignature *methodSignature = [NSURLSessionClass methodSignatureForSelector:selector];
+            NSInvocation *invocation = [NSInvocation invocationWithMethodSignature:methodSignature];
+            invocation.target = NSURLSessionClass;
+            invocation.selector = selector;
+            [invocation invoke];
+            [invocation getReturnValue:&measuringPerformance];
+        }
+    }
+#endif
+    
+    return measuringPerformance;
 }
 
 - (BOOL)optOut {
@@ -932,9 +949,13 @@ NSString *const kMPStateKey = @"state";
     if ([extension conformsToProtocol:@protocol(MPExtensionKitProtocol)]) {
         registrationSuccessful = [MPKitContainer registerKit:(id<MPExtensionKitProtocol>)extension];
         
-        MPILogDebug(@"Registered kit extension: %@", extension);
+        MPILogDebug(@"Registered kit extension: %@", [[extension class] description]);
+    } else if ([extension conformsToProtocol:@protocol(MPExtensionNetworkPerformanceProtocol)]) {
+        registrationSuccessful = [MPNetworkPerformanceFactory registerExtension:(id<MPExtensionNetworkPerformanceProtocol>)extension];
+
+        MPILogDebug(@"Registered network performance measurement extension: %@", [[extension class] description]);
     } else {
-        MPILogError(@"Could not register extension: %@", extension);
+        MPILogError(@"Could not register extension: %@", [[extension class] description]);
     }
     
     return registrationSuccessful;
@@ -1082,12 +1103,22 @@ NSString *const kMPStateKey = @"state";
 
 #pragma mark Network performance
 - (void)beginMeasuringNetworkPerformance {
+#if defined(MP_NETWORK_PERFORMANCE_MEASUREMENT)
     if (self.backendController.initializationStatus == MPInitializationStatusStarted) {
         if ([[MPStateMachine sharedInstance].networkPerformanceMeasuringMode isEqualToString:kMPRemoteConfigForceFalse]) {
             return;
         }
         
-        [NSURLSession swizzleMethods];
+        Class NSURLSessionClass = NSClassFromString(@"NSURLSession");
+        if (NSURLSessionClass) {
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Warc-performSelector-leaks"
+            SEL selector = NSSelectorFromString(@"swizzleMethods");
+            if ([NSURLSessionClass respondsToSelector:selector]) {
+                [NSURLSessionClass performSelector:selector];
+            }
+#pragma clang diagnostic pop
+        }
     } else if (self.backendController.initializationStatus == MPInitializationStatusStarting) {
         __weak MParticle *weakSelf = self;
         dispatch_async(dispatch_get_main_queue(), ^{
@@ -1095,15 +1126,28 @@ NSString *const kMPStateKey = @"state";
             [strongSelf beginMeasuringNetworkPerformance];
         });
     }
+#else
+    MPILogError(@"Cannot execute '%@'. There is no network performance measurement class registered with the core SDK.", NSStringFromSelector(_cmd));
+#endif
 }
 
 - (void)endMeasuringNetworkPerformance {
+#if defined(MP_NETWORK_PERFORMANCE_MEASUREMENT)
     if (self.backendController.initializationStatus == MPInitializationStatusStarted) {
         if ([[MPStateMachine sharedInstance].networkPerformanceMeasuringMode isEqualToString:kMPRemoteConfigForceTrue]) {
             return;
         }
         
-        [NSURLSession restoreMethods];
+        Class NSURLSessionClass = NSClassFromString(@"NSURLSession");
+        if (NSURLSessionClass) {
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Warc-performSelector-leaks"
+            SEL selector = NSSelectorFromString(@"restoreMethods");
+            if ([NSURLSessionClass respondsToSelector:selector]) {
+                [NSURLSessionClass performSelector:selector];
+            }
+#pragma clang diagnostic pop
+        }
     } else if (self.backendController.initializationStatus == MPInitializationStatusStarting) {
         __weak MParticle *weakSelf = self;
         dispatch_async(dispatch_get_main_queue(), ^{
@@ -1111,16 +1155,36 @@ NSString *const kMPStateKey = @"state";
             [strongSelf endMeasuringNetworkPerformance];
         });
     }
+#else
+    MPILogError(@"Cannot execute '%@'. There is no network performance measurement class registered with the core SDK.", NSStringFromSelector(_cmd));
+#endif
 }
 
 - (void)excludeURLFromNetworkPerformanceMeasuring:(NSURL *)url {
-    [NSURLSession excludeURLFromNetworkPerformanceMeasuring:url];
+#if defined(MP_NETWORK_PERFORMANCE_MEASUREMENT)
+    Class NSURLSessionClass = NSClassFromString(@"NSURLSession");
+    if (NSURLSessionClass) {
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Warc-performSelector-leaks"
+        SEL selector = NSSelectorFromString(@"excludeURLFromNetworkPerformanceMeasuring:");
+        if ([NSURLSessionClass respondsToSelector:selector]) {
+            [NSURLSessionClass performSelector:selector withObject:url];
+        }
+#pragma clang diagnostic pop
+    }
+#endif
 }
 
 - (void)logNetworkPerformance:(NSString *)urlString httpMethod:(NSString *)httpMethod startTime:(NSTimeInterval)startTime duration:(NSTimeInterval)duration bytesSent:(NSUInteger)bytesSent bytesReceived:(NSUInteger)bytesReceived {
+#if defined(MP_NETWORK_PERFORMANCE_MEASUREMENT)
     NSURL *url = [NSURL URLWithString:urlString];
     NSURLRequest *urlRequest = [NSURLRequest requestWithURL:url];
-    MPNetworkPerformance *networkPerformance = [[MPNetworkPerformance alloc] initWithURLRequest:urlRequest networkMeasurementMode:MPNetworkMeasurementModePreserveQuery];
+    id<MPNetworkPerformanceMeasurementProtocol> networkPerformance = [MPNetworkPerformanceFactory createNetworkPerformanceMeasurementWithURLRequest:urlRequest networkMeasurementMode:MPNetworkMeasurementModePreserveQuery];
+    if (!networkPerformance) {
+        MPILogError(@"There is no network performance measurement class registered with the core SDK.");
+        return;
+    }
+    
     networkPerformance.httpMethod = httpMethod;
     networkPerformance.startTime = startTime;
     networkPerformance.elapsedTime = duration;
@@ -1131,7 +1195,7 @@ NSString *const kMPStateKey = @"state";
     
     [self.backendController logNetworkPerformanceMeasurement:networkPerformance
                                                      attempt:0
-                                           completionHandler:^(MPNetworkPerformance *networkPerformance, MPExecStatus execStatus) {
+                                           completionHandler:^(id<MPNetworkPerformanceMeasurementProtocol> networkPerformance, MPExecStatus execStatus) {
                                                __strong MParticle *strongSelf = weakSelf;
                                                
                                                if (execStatus == MPExecStatusSuccess) {
@@ -1142,14 +1206,43 @@ NSString *const kMPStateKey = @"state";
                                                    MPILogError(@"Could not log network performance measurement\n Reason: %@", [strongSelf.backendController execStatusDescription:execStatus]);
                                                }
                                            }];
+#else
+    MPILogError(@"Cannot execute '%@'. There is no network performance measurement class registered with the core SDK.", NSStringFromSelector(_cmd));
+#endif
 }
 
 - (void)preserveQueryMeasuringNetworkPerformance:(NSString *)queryString {
-    [NSURLSession preserveQueryMeasuringNetworkPerformance:queryString];
+#if defined(MP_NETWORK_PERFORMANCE_MEASUREMENT)
+    Class NSURLSessionClass = NSClassFromString(@"NSURLSession");
+    if (NSURLSessionClass) {
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Warc-performSelector-leaks"
+        SEL selector = NSSelectorFromString(@"preserveQueryMeasuringNetworkPerformance:");
+        if ([NSURLSessionClass respondsToSelector:selector]) {
+            [NSURLSessionClass performSelector:selector withObject:queryString];
+        }
+#pragma clang diagnostic pop
+    }
+#else
+    MPILogError(@"Cannot execute '%@'. There is no network performance measurement class registered with the core SDK.", NSStringFromSelector(_cmd));
+#endif
 }
 
 - (void)resetNetworkPerformanceExclusionsAndFilters {
-    [NSURLSession resetNetworkPerformanceExclusionsAndFilters];
+#if defined(MP_NETWORK_PERFORMANCE_MEASUREMENT)
+    Class NSURLSessionClass = NSClassFromString(@"NSURLSession");
+    if (NSURLSessionClass) {
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Warc-performSelector-leaks"
+        SEL selector = NSSelectorFromString(@"resetNetworkPerformanceExclusionsAndFilters");
+        if ([NSURLSessionClass respondsToSelector:selector]) {
+            [NSURLSessionClass performSelector:selector];
+        }
+#pragma clang diagnostic pop
+    }
+#else
+    MPILogError(@"Cannot execute '%@'. There is no network performance measurement class registered with the core SDK.", NSStringFromSelector(_cmd));
+#endif
 }
 
 #pragma mark Session management

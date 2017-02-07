@@ -67,7 +67,6 @@ extern NSString * _Nonnull const kMPMessageTypeKey;
 extern NSString * _Nonnull const kMPMessageTypeRequestHeader;
 extern NSString * _Nonnull const kMPMessageTypeResponseHeader;
 extern NSString * _Nonnull const kMPMessageTypeConfig;
-extern NSString * _Nonnull const kMPMessageTypeNetworkPerformance;
 extern NSString * _Nonnull const kMPMessageTypeLeaveBreadcrumbs;
 
 // Request Header Keys
@@ -266,10 +265,6 @@ extern NSString * _Nonnull const kMPASTForegroundKey;
 extern NSString * _Nonnull const kMPASTIsFirstRunKey;
 extern NSString * _Nonnull const kMPASTIsUpgradeKey;
 extern NSString * _Nonnull const kMPASTPreviousSessionSuccessfullyClosedKey;
-
-// Network performance
-extern NSString * _Nonnull const kMPNetworkPerformanceMeasurementNotification;
-extern NSString * _Nonnull const kMPNetworkPerformanceKey;
 
 // Kits
 extern NSString * _Nonnull const MPKitAttributeJailbrokenKey;
