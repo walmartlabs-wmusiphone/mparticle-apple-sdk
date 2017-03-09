@@ -53,6 +53,7 @@
 #import "MPUserIdentityChange.h"
 #import "MPURLRequestBuilder.h"
 #import "NSDictionary+MPCaseInsensitive.h"
+#import "NSString+MPUtils.h"
 #import "NSUserDefaults+mParticle.h"
 
 #if TARGET_OS_IOS == 1
@@ -63,6 +64,8 @@
 
 static NSArray *execStatusDescriptions;
 static BOOL appBackgrounded = NO;
+
+using namespace mParticle;
 
 @interface MPBackendController() {
     MPAppDelegateProxy *appDelegateProxy;
@@ -1779,7 +1782,7 @@ static BOOL appBackgrounded = NO;
                         [breadcrumbs addObject:[breadcrumb dictionaryRepresentation]];
                     }
                     
-                    NSString *messageTypeBreadcrumbKey = [NSString stringWithCString:mParticle::MessageTypeName::nameForMessageType(mParticle::Breadcrumb).c_str() encoding:NSUTF8StringEncoding];
+                    NSString *messageTypeBreadcrumbKey = [NSString stringWithCPPString:MessageTypeName::nameForMessageType(Breadcrumb)];
                     messageInfo[messageTypeBreadcrumbKey] = breadcrumbs;
                     
                     NSNumber *sessionNumber = self.session.sessionNumber;
@@ -2183,8 +2186,7 @@ static BOOL appBackgrounded = NO;
             NSString *eventType = messageDictionary[kMPEventTypeKey];
             
             if (!error && eventName && eventType) {
-                NSString *hashedEvent = [NSString stringWithCString:mParticle::Hasher::hashEvent([eventName cStringUsingEncoding:NSUTF8StringEncoding], [eventType cStringUsingEncoding:NSUTF8StringEncoding]).c_str()
-                                                           encoding:NSUTF8StringEncoding];
+                NSString *hashedEvent = [NSString stringWithCPPString:Hasher::hashEvent([eventName cStringUsingEncoding:NSUTF8StringEncoding], [eventType cStringUsingEncoding:NSUTF8StringEncoding])];
                 
                 shouldUpload = [stateMachine.triggerEventTypes containsObject:hashedEvent];
             }
