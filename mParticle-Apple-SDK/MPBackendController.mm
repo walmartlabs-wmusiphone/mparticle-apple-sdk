@@ -34,6 +34,7 @@
 #import "MPHasher.h"
 #import "MPIConstants.h"
 #import "MPILogger.h"
+#import "MPIUserDefaults.h"
 #import "MPKitContainer.h"
 #import "MPMessage.h"
 #import "MPMessageBuilder.h"
@@ -54,7 +55,6 @@
 #import "MPURLRequestBuilder.h"
 #import "NSDictionary+MPCaseInsensitive.h"
 #import "NSString+MPUtils.h"
-#import "NSUserDefaults+mParticle.h"
 
 #if TARGET_OS_IOS == 1
     #import "MPLocationManager.h"
@@ -269,7 +269,7 @@ using namespace mParticle;
     }
     
     _userAttributes = [[NSMutableDictionary alloc] initWithCapacity:2];
-    NSUserDefaults *userDefaults = [NSUserDefaults standardUserDefaults];
+    MPIUserDefaults *userDefaults = [MPIUserDefaults standardUserDefaults];
     NSDictionary *userAttributes = userDefaults[kMPUserAttributeKey];
     if (userAttributes) {
         NSEnumerator *attributeEnumerator = [userAttributes keyEnumerator];
@@ -297,7 +297,7 @@ using namespace mParticle;
     }
     
     _userIdentities = [[NSMutableArray alloc] initWithCapacity:10];
-    NSUserDefaults *userDefaults = [NSUserDefaults standardUserDefaults];
+    MPIUserDefaults *userDefaults = [MPIUserDefaults standardUserDefaults];
     NSArray *userIdentityArray = userDefaults[kMPUserIdentityArrayKey];
     if (userIdentityArray) {
         [_userIdentities addObjectsFromArray:userIdentityArray];
@@ -808,7 +808,7 @@ using namespace mParticle;
                 }
 
                 dispatch_async(dispatch_get_main_queue(), ^{
-                    NSUserDefaults *userDefaults = [NSUserDefaults standardUserDefaults];
+                    MPIUserDefaults *userDefaults = [MPIUserDefaults standardUserDefaults];
                     userDefaults[kMPUserAttributeKey] = userAttributes;
                     [userDefaults synchronize];
                 });
@@ -938,7 +938,7 @@ using namespace mParticle;
                     }
 
                     dispatch_async(dispatch_get_main_queue(), ^{
-                        NSUserDefaults *userDefaults = [NSUserDefaults standardUserDefaults];
+                        MPIUserDefaults *userDefaults = [MPIUserDefaults standardUserDefaults];
                         userDefaults[kMPUserIdentityArrayKey] = self.userIdentities;
                         [userDefaults synchronize];
                     });
@@ -1736,7 +1736,7 @@ using namespace mParticle;
     }
     
     dispatch_async(dispatch_get_main_queue(), ^{
-        NSUserDefaults *userDefaults = [NSUserDefaults standardUserDefaults];
+        MPIUserDefaults *userDefaults = [MPIUserDefaults standardUserDefaults];
         userDefaults[kMPUserAttributeKey] = userAttributes;
         [userDefaults synchronize];
     });
