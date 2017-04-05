@@ -40,6 +40,12 @@
 * [NEW] Optimize user identity and user attribute change messages
 * [NEW] Sync user attributes and identities only once per kit
 
+## 7.0.0-beta3
+
+>Upgrade suggestion: **MODERATE**. Upgrade if you want a smaller and faster SDK
+
+* [NEW] Custom wrapper for NSUserDefaults. The SDK no longer implements the subscript protocol for NSUserDefaults, but instead implements a wrapper class.
+
 ## 6.12.6
 
 >Upgrade suggestion: **LOW**. Upgrade if you've seen a kit configuration be removed from cache by the O.S.
