@@ -506,7 +506,7 @@ static NSArray *actionNames;
                     event.info = eventInfo;
                 }
 
-                commerceEventInstruction = [[MPCommerceEventInstruction alloc] initWithInstruction:MPCommerceInstructionEvent event:event];
+                commerceEventInstruction = [[MPCommerceEventInstruction alloc] initWithInstruction:MPCommerceInstructionEvent event:event product:nil];
                 expansionInstructions.push_back(commerceEventInstruction);
             }
         }
@@ -530,7 +530,7 @@ static NSArray *actionNames;
                 event.info = eventInfo;
             }
 
-            commerceEventInstruction = [[MPCommerceEventInstruction alloc] initWithInstruction:MPCommerceInstructionEvent event:event];
+            commerceEventInstruction = [[MPCommerceEventInstruction alloc] initWithInstruction:MPCommerceInstructionEvent event:event product:nil];
             expansionInstructions.push_back(commerceEventInstruction);
         }
             break;
@@ -559,7 +559,7 @@ static NSArray *actionNames;
                                 event.info = eventInfo;
                             }
 
-                            commerceEventInstruction = [[MPCommerceEventInstruction alloc] initWithInstruction:MPCommerceInstructionEvent event:event];
+                            commerceEventInstruction = [[MPCommerceEventInstruction alloc] initWithInstruction:MPCommerceInstructionEvent event:event product:nil];
                             expansionInstructions.push_back(commerceEventInstruction);
                         }
                     }

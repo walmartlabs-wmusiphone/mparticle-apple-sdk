@@ -381,10 +381,17 @@ static NSMutableSet <id<MPExtensionKitProtocol>> *kitsRegistry;
 
 - (void)syncUserAttributes:(NSDictionary *)userAttributes withKitRegister:(id<MPExtensionKitProtocol>)kitRegister {
     id<MPKitProtocol> kitInstance = kitRegister.wrapperInstance;
-    if (MPIsNull(userAttributes) || userAttributes.count == 0 || !kitInstance) {
+    MPIUserDefaults *userDefaults = [MPIUserDefaults standardUserDefaults];
+    NSArray *alreadySynchedUserAttributes = userDefaults[kMPSynchedUserAttributesKey];
+    if (MPIsNull(userAttributes) || userAttributes.count == 0 || !kitInstance || [alreadySynchedUserAttributes containsObject:kitRegister.code]) {
         return;
     }
-    
+
+    NSMutableArray *synchedUserAttributes = [[NSMutableArray alloc] initWithCapacity:alreadySynchedUserAttributes.count + 1];
+    [synchedUserAttributes addObjectsFromArray:alreadySynchedUserAttributes];
+    [synchedUserAttributes addObject:kitRegister.code];
+    userDefaults[kMPSynchedUserAttributesKey] = synchedUserAttributes;
+
     __block MPKitFilter *kitFilter = nil;
     MPKitConfiguration *kitConfiguration = self.kitConfigurations[kitRegister.code];
     
@@ -437,9 +444,16 @@ static NSMutableSet <id<MPExtensionKitProtocol>> *kitsRegistry;
 
 - (void)syncUserIdentities:(NSArray *)userIdentities withKitRegister:(id<MPExtensionKitProtocol>)kitRegister {
     id<MPKitProtocol> kitInstance = kitRegister.wrapperInstance;
-    if (MPIsNull(userIdentities) || userIdentities.count == 0 || ![kitInstance respondsToSelector:@selector(setUserIdentity:identityType:)]) {
+    MPIUserDefaults *userDefaults = [MPIUserDefaults standardUserDefaults];
+    NSArray *alreadySynchedUserIdentities = userDefaults[kMPSynchedUserIdentitiesKey];
+    if (MPIsNull(userIdentities) || userIdentities.count == 0 || ![kitInstance respondsToSelector:@selector(setUserIdentity:identityType:)] || [alreadySynchedUserIdentities containsObject:kitRegister.code]) {
         return;
     }
+
+    NSMutableArray *synchedUserIdentities = [[NSMutableArray alloc] initWithCapacity:alreadySynchedUserIdentities.count + 1];
+    [synchedUserIdentities addObjectsFromArray:alreadySynchedUserIdentities];
+    [synchedUserIdentities addObject:kitRegister.code];
+    userDefaults[kMPSynchedUserIdentitiesKey] = synchedUserIdentities;
 
     for (NSDictionary *userIdentity in userIdentities) {
         MPUserIdentity identityType = (MPUserIdentity)[userIdentity[kMPUserIdentityTypeKey] intValue];
