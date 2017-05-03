@@ -651,7 +651,15 @@ using namespace mParticle;
                                                                  completionHandler();
                                                                  return;
                                                              }
-                                                             
+
+                                                             if (![MPStateMachine sharedInstance].shouldUploadSessionHistory) {
+                                                                 for (NSNumber *uploadId in sessionHistory.uploadIds) {
+                                                                     [persistence deleteUploadId:[uploadId intValue]];
+                                                                 }
+                                                                 completionHandler();
+                                                                 return;
+                                                             }
+
                                                              sessionHistory.userAttributes = self.userAttributes;
                                                              sessionHistory.userIdentities = self.userIdentities;
                                                              
