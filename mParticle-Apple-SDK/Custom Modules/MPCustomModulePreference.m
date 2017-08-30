@@ -17,7 +17,7 @@
 //
 
 #import "MPCustomModulePreference.h"
-#import "NSUserDefaults+mParticle.h"
+#import "MPIUserDefaults.h"
 #import "MPAppboy.h"
 #import "MPStateMachine.h"
 #import "MPILogger.h"
@@ -133,7 +133,7 @@
     return jsonString;
 }
 
-- (NSString *)defaultValueForMacroPlaceholder:(NSString *)macroPlaceholder {
+- (NSString *)defaultValueForMacroPlaceholder:(NSString *)macroPlaceholder __attribute__((no_sanitize("integer"))) {
     NSString *defaultValue = @"";
     
     if ([macroPlaceholder isEqualToString:@"%gn%"]) {
@@ -203,30 +203,28 @@
         return _value;
     }
     
-    NSUserDefaults *userDefaults = [NSUserDefaults standardUserDefaults];
+    MPIUserDefaults *userDefaults = [MPIUserDefaults standardUserDefaults];
     
     NSString *deprecatedKey = [NSString stringWithFormat:@"cms::%@", self.writeKey];
     NSString *customModuleKey = [NSString stringWithFormat:@"cms::%@::%@", self.moduleId, self.writeKey];
-    
-    id valueWithDeprecatedKey = userDefaults[deprecatedKey];
+    id valueWithDeprecatedKey = [userDefaults mpObjectForKey:deprecatedKey];
     if (valueWithDeprecatedKey) {
         _value = valueWithDeprecatedKey;
-        userDefaults[customModuleKey] = _value;
+        [userDefaults setMPObject:_value forKey:customModuleKey];
         [userDefaults removeMPObjectForKey:deprecatedKey];
         return _value;
     }
-    
-    _value = userDefaults[customModuleKey];
+    _value = [userDefaults mpObjectForKey:customModuleKey];
     if (_value) {
         return _value;
     }
     
-    NSDictionary *userDefaultsDictionary = [userDefaults dictionaryRepresentation];
+    NSDictionary *userDefaultsDictionary = [[NSUserDefaults standardUserDefaults] dictionaryRepresentation];
     NSArray *keys = [userDefaultsDictionary allKeys];
-
+    
     if ([keys containsObject:self.readKey]) {
         if ([_moduleId isEqual:@(MPCustomModuleIdAppBoy)]) {
-            NSData *appboyData = [userDefaults objectForKey:_readKey];
+            NSData *appboyData = [[NSUserDefaults standardUserDefaults] objectForKey:_readKey];
             if (appboyData) {
                 id appboy = [NSKeyedUnarchiver unarchiveObjectWithData:appboyData];
                 
@@ -241,7 +239,7 @@
                 }
             }
         } else {
-            id storedValue = [userDefaults objectForKey:_readKey];
+            id storedValue = [[NSUserDefaults standardUserDefaults] objectForKey:_readKey];
             if (!MPIsNull(storedValue)) {
                 _value = [storedValue isKindOfClass:[NSDate class]] ? [MPDateFormatter stringFromDateRFC3339:storedValue] : storedValue;
             }
@@ -251,15 +249,15 @@
             switch (_dataType) {
                 case MPDataTypeInt:
                 case MPDataTypeLong:
-                    _value = @([userDefaults integerForKey:_readKey]);
+                    _value = @([[NSUserDefaults standardUserDefaults] integerForKey:_readKey]);
                     break;
                     
                 case MPDataTypeBool:
-                    _value = @([userDefaults boolForKey:_readKey]);
+                    _value = @([[NSUserDefaults standardUserDefaults] boolForKey:_readKey]);
                     break;
                     
                 case MPDataTypeFloat:
-                    _value = @([userDefaults floatForKey:_readKey]);
+                    _value = @([[NSUserDefaults standardUserDefaults] floatForKey:_readKey]);
                     break;
                     
                 default:
@@ -287,8 +285,7 @@
                 break;
         }
     }
-
-    userDefaults[customModuleKey] = _value;
+    [userDefaults setMPObject:_value forKey:customModuleKey];
     
     return _value;
 }

@@ -24,7 +24,7 @@
 #import "MPIConstants.h"
 #import "MPStateMachine.h"
 #import "MPNetworkPerformance.h"
-#import "NSUserDefaults+mParticle.h"
+#import "MPIUserDefaults.h"
 #import "MPBreadcrumb.h"
 #import "MPExceptionHandler.h"
 #import "MPUpload.h"
@@ -272,7 +272,7 @@ static BOOL appBackgrounded = NO;
     }
     
     _userAttributes = [[NSMutableDictionary alloc] initWithCapacity:2];
-    NSUserDefaults *userDefaults = [NSUserDefaults standardUserDefaults];
+    MPIUserDefaults *userDefaults = [MPIUserDefaults standardUserDefaults];
     NSDictionary *userAttributes = userDefaults[kMPUserAttributeKey];
     if (userAttributes) {
         NSEnumerator *attributeEnumerator = [userAttributes keyEnumerator];
@@ -300,7 +300,7 @@ static BOOL appBackgrounded = NO;
     }
     
     _userIdentities = [[NSMutableArray alloc] initWithCapacity:10];
-    NSUserDefaults *userDefaults = [NSUserDefaults standardUserDefaults];
+    MPIUserDefaults *userDefaults = [MPIUserDefaults standardUserDefaults];
     NSArray *userIdentityArray = userDefaults[kMPUserIdentityArrayKey];
     if (userIdentityArray) {
         [_userIdentities addObjectsFromArray:userIdentityArray];
@@ -799,7 +799,7 @@ static BOOL appBackgrounded = NO;
                 }
 
                 dispatch_async(dispatch_get_main_queue(), ^{
-                    NSUserDefaults *userDefaults = [NSUserDefaults standardUserDefaults];
+                    MPIUserDefaults *userDefaults = [MPIUserDefaults standardUserDefaults];
                     userDefaults[kMPUserAttributeKey] = userAttributes;
                     [userDefaults synchronize];
                 });
@@ -929,7 +929,7 @@ static BOOL appBackgrounded = NO;
                     }
 
                     dispatch_async(dispatch_get_main_queue(), ^{
-                        NSUserDefaults *userDefaults = [NSUserDefaults standardUserDefaults];
+                        MPIUserDefaults *userDefaults = [MPIUserDefaults standardUserDefaults];
                         userDefaults[kMPUserIdentityArrayKey] = self.userIdentities;
                         [userDefaults synchronize];
                     });
@@ -1461,7 +1461,11 @@ static BOOL appBackgrounded = NO;
     
     backgroundSource = [self createSourceTimer:(MINIMUM_SESSION_TIMEOUT + 0.1)
                                   eventHandler:^{
-                                      NSTimeInterval backgroundTimeRemaining = [[UIApplication sharedApplication] backgroundTimeRemaining];
+                                      __block NSTimeInterval backgroundTimeRemaining;
+                                      dispatch_sync(dispatch_get_main_queue(), ^{
+                                           backgroundTimeRemaining = [[UIApplication sharedApplication] backgroundTimeRemaining];
+                                      });
+                                      
                                       __strong MPBackendController *strongSelf = weakSelf;
                                       if (!strongSelf) {
                                           return;
@@ -1907,7 +1911,7 @@ static BOOL appBackgrounded = NO;
                                                     }
                                                         break;
                                                         
-                                                    case MPNetworkErrorDelayedSegemnts:
+                                                    case MPNetworkErrorDelayedSegments:
                                                         if (success && segments.count > 0) {
                                                             [persistence deleteSegments];
                                                         }
@@ -1998,7 +2002,7 @@ static BOOL appBackgrounded = NO;
     }
     
     dispatch_async(dispatch_get_main_queue(), ^{
-        NSUserDefaults *userDefaults = [NSUserDefaults standardUserDefaults];
+        MPIUserDefaults *userDefaults = [MPIUserDefaults standardUserDefaults];
         userDefaults[kMPUserAttributeKey] = userAttributes;
         [userDefaults synchronize];
     });
@@ -2562,7 +2566,7 @@ static BOOL appBackgrounded = NO;
     [MPURLRequestBuilder tryToCaptureUserAgent];
     
     __weak MPBackendController *weakSelf = self;
-    
+    __block MPMessageBuilder *messageBuilder = [MPMessageBuilder newBuilderWithMessageType:MPMessageTypeFirstRun session:self.session messageInfo:nil];
     dispatch_async(backendQueue, ^{
         __strong MPBackendController *strongSelf = weakSelf;
         _initializationStatus = MPInitializationStatusStarted;
@@ -2572,7 +2576,6 @@ static BOOL appBackgrounded = NO;
         [strongSelf beginUploadTimer];
         
         if (firstRun) {
-            MPMessageBuilder *messageBuilder = [MPMessageBuilder newBuilderWithMessageType:MPMessageTypeFirstRun session:strongSelf.session messageInfo:nil];
             MPMessage *message = (MPMessage *)[messageBuilder build];
             message.uploadStatus = MPUploadStatusBatch;
             

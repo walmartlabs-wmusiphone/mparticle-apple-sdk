@@ -30,7 +30,6 @@
 #import <dlfcn.h>
 #import <libkern/OSAtomic.h>
 #import "MPCurrentState.h"
-#import "NSUserDefaults+mParticle.h"
 #import "MPMessageBuilder.h"
 #import <UIKit/UIKit.h>
 #import "MPPersistenceController.h"
@@ -49,9 +48,9 @@ static BOOL handlingExceptions;
 
 void SignalHandler(int signal);
 //void BeginUncaughtExceptionLogging();
-void EndUncaughtExceptionLogging();
+void EndUncaughtExceptionLogging(void);
 void handleException(NSException *exception);
-static bool debuggerRunning();
+static bool debuggerRunning(void);
 
 typedef struct Binaryimage {
     struct Binaryimage *previous;

@@ -22,7 +22,7 @@
 #import "MPILogger.h"
 #import "MPKitContainer.h"
 #import "MPStateMachine.h"
-#import "NSUserDefaults+mParticle.h"
+#import "MPIUserDefaults.h"
 
 #if TARGET_OS_IOS == 1
     #import <CoreLocation/CoreLocation.h>
@@ -45,13 +45,12 @@
     
     if (dataReceivedFromServer) {
         [[MPKitContainer sharedInstance] configureKits:_configuration[kMPRemoteConfigKitsKey]];
-        
-        stateMachine.latestSDKVersion = _configuration[kMPRemoteConfigLatestSDKVersionKey];
-        [stateMachine configureCustomModules:_configuration[kMPRemoteConfigCustomModuleSettingsKey]];
-        [stateMachine configureRampPercentage:_configuration[kMPRemoteConfigRampKey]];
-        [stateMachine configureTriggers:_configuration[kMPRemoteConfigTriggerKey]];
-        [stateMachine configureRestrictIDFA:_configuration[kMPRemoteConfigRestrictIDFA]];
     }
+    stateMachine.latestSDKVersion = _configuration[kMPRemoteConfigLatestSDKVersionKey];
+    [stateMachine configureCustomModules:_configuration[kMPRemoteConfigCustomModuleSettingsKey]];
+    [stateMachine configureRampPercentage:_configuration[kMPRemoteConfigRampKey]];
+    [stateMachine configureTriggers:_configuration[kMPRemoteConfigTriggerKey]];
+    [stateMachine configureRestrictIDFA:_configuration[kMPRemoteConfigRestrictIDFA]];
     
     _influencedOpenTimer = !MPIsNull(_configuration[kMPRemoteConfigInfluencedOpenTimerKey]) ? _configuration[kMPRemoteConfigInfluencedOpenTimerKey] : nil;
     
@@ -144,7 +143,7 @@
     if (!responseConfig || !responseConfig.configuration) {
         // If a kit is registered against the core SDK, there is an eTag present, and there is no corresponding kit configuration, then
         // delete the saved eTag, thus "forcing" a config refresh on the next call to the server
-        NSUserDefaults *userDefaults = [NSUserDefaults standardUserDefaults];
+        MPIUserDefaults *userDefaults = [MPIUserDefaults standardUserDefaults];
         NSString *eTag = userDefaults[kMPHTTPETagHeaderKey];
         if (!eTag) {
             return;

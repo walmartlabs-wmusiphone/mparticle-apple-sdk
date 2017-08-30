@@ -35,7 +35,7 @@
 #import "MPConsumerInfo.h"
 #import "MPPersistenceController.h"
 #import "MPDataModelAbstract.h"
-#import "NSUserDefaults+mParticle.h"
+#import "MPIUserDefaults.h"
 #import "MPSessionHistory.h"
 #import "MPDateFormatter.h"
 
@@ -279,7 +279,7 @@ NSString *const kMPURLHostConfig = @"config2.mparticle.com";
                      success = success && [data length] > 0;
                      
                      if (!MPIsNull(eTag) && success) {
-                         NSUserDefaults *userDefaults = [NSUserDefaults standardUserDefaults];
+                         MPIUserDefaults *userDefaults = [MPIUserDefaults standardUserDefaults];
                          userDefaults[kMPHTTPETagHeaderKey] = eTag;
                      }
                      
@@ -426,7 +426,7 @@ NSString *const kMPURLHostConfig = @"config2.mparticle.com";
                          completionHandler(success, (NSArray *)segments, elapsedTime, segmentError);
                      } else {
                          segmentError = [NSError errorWithDomain:@"mParticle Segments"
-                                                            code:MPNetworkErrorDelayedSegemnts
+                                                            code:MPNetworkErrorDelayedSegments
                                                         userInfo:@{@"message":@"It took too long to retrieve segments."}];
                          
                          completionHandler(success, (NSArray *)segments, elapsedTime, segmentError);
