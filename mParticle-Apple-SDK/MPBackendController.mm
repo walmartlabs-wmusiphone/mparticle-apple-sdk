@@ -440,7 +440,7 @@ static BOOL appBackgrounded = NO;
         previousSessionSuccessfullyClosed = previousSessionStateDictionary[kMPASTPreviousSessionSuccessfullyClosedKey];
     }
     
-    if (!previousSessionSuccessfullyClosed) {
+    if (previousSessionSuccessfullyClosed == nil) {
         previousSessionSuccessfullyClosed = @YES;
     }
     
@@ -743,8 +743,17 @@ static BOOL appBackgrounded = NO;
             }
             
             dispatch_sync(backendQueue, ^{
-                id<NSObject> userAttributeValue = nil;
                 NSString *localKey = [self.userAttributes caseInsensitiveKey:userAttributeChange.key];
+                
+                if (!userAttributeChange.value && !self.userAttributes[localKey]) {
+                    if (completionHandler) {
+                        completionHandler(userAttributeChange.key, userAttributeChange.value, MPExecStatusSuccess);
+                    }
+                    
+                    return;
+                }
+                
+                id<NSObject> userAttributeValue = nil;
                 NSError *error = nil;
                 NSUInteger maxValueLength = userAttributeChange.isArray ? MAX_USER_ATTR_LIST_ENTRY_LENGTH : LIMIT_USER_ATTR_LENGTH;
                 BOOL validAttributes = [self checkAttribute:userAttributeChange.userAttributes key:localKey value:userAttributeChange.value maxValueLength:maxValueLength error:&error];
@@ -911,7 +920,7 @@ static BOOL appBackgrounded = NO;
                             userIdentityChange.userIdentityOld = [[MPUserIdentityInstance alloc] initWithUserIdentityDictionary:userIdentity];
                             
                             NSNumber *timeIntervalMilliseconds = userIdentity[kMPDateUserIdentityWasFirstSet];
-                            userIdentityChange.userIdentityNew.dateFirstSet = timeIntervalMilliseconds ? [NSDate dateWithTimeIntervalSince1970:([timeIntervalMilliseconds doubleValue] / 1000.0)] : [NSDate date];
+                            userIdentityChange.userIdentityNew.dateFirstSet = timeIntervalMilliseconds != nil ? [NSDate dateWithTimeIntervalSince1970:([timeIntervalMilliseconds doubleValue] / 1000.0)] : [NSDate date];
                             userIdentityChange.userIdentityNew.isFirstTimeSet = NO;
                             
                             identityDictionary = [userIdentityChange.userIdentityNew dictionaryRepresentation];
@@ -927,12 +936,11 @@ static BOOL appBackgrounded = NO;
                     if (userIdentityChange.changed) {
                         [self logUserIdentityChange:userIdentityChange];
                     }
-
-                    dispatch_async(dispatch_get_main_queue(), ^{
-                        MPIUserDefaults *userDefaults = [MPIUserDefaults standardUserDefaults];
-                        userDefaults[kMPUserIdentityArrayKey] = self.userIdentities;
-                        [userDefaults synchronize];
-                    });
+                    
+                    MPIUserDefaults *userDefaults = [MPIUserDefaults standardUserDefaults];
+                    userDefaults[kMPUserIdentityArrayKey] = self.userIdentities;
+                    [userDefaults synchronize];
+                    
                 }
                 
                 dispatch_async(dispatch_get_main_queue(), ^{
@@ -1461,55 +1469,61 @@ static BOOL appBackgrounded = NO;
     
     backgroundSource = [self createSourceTimer:(MINIMUM_SESSION_TIMEOUT + 0.1)
                                   eventHandler:^{
-                                      __block NSTimeInterval backgroundTimeRemaining;
-                                      dispatch_sync(dispatch_get_main_queue(), ^{
-                                           backgroundTimeRemaining = [[UIApplication sharedApplication] backgroundTimeRemaining];
-                                      });
                                       
-                                      __strong MPBackendController *strongSelf = weakSelf;
-                                      if (!strongSelf) {
-                                          return;
-                                      }
-                                      
-                                      strongSelf->longSession = backgroundTimeRemaining > kMPRemainingBackgroundTimeMinimumThreshold;
-                                      
-                                      if (!strongSelf->longSession) {
-                                          NSTimeInterval currentTime = [[NSDate date] timeIntervalSince1970];
+                                      dispatch_async(dispatch_get_main_queue(), ^{
                                           
-                                          void(^processSession)(NSTimeInterval) = ^(NSTimeInterval timeout) {
-                                              [strongSelf endBackgroundTimer];
-                                              strongSelf.session.backgroundTime += timeout;
+                                          __block NSTimeInterval backgroundTimeRemaining;
+                                          backgroundTimeRemaining = [[UIApplication sharedApplication] backgroundTimeRemaining];
+                                          
+                                          dispatch_async(backendQueue, ^{
                                               
-                                              [strongSelf processOpenSessionsIncludingCurrent:YES
-                                                                            completionHandler:^(BOOL success) {
-                                                                                [MPStateMachine setRunningInBackground:NO];
-                                                                                [strongSelf broadcastSessionDidEnd:strongSelf->_session];
-                                                                                strongSelf->_session = nil;
-                                                                                
-                                                                                if (strongSelf.eventSet.count == 0) {
-                                                                                    strongSelf->_eventSet = nil;
-
-                                                                                }
-                                                                                
-                                                                                MPILogDebug(@"SDK has ended background activity.");
-                                                                                [strongSelf endBackgroundTask];
-                                                                            }];
-                                          };
-                                          
-                                          if ((MINIMUM_SESSION_TIMEOUT + 0.1) >= strongSelf.sessionTimeout) {
-                                              processSession(strongSelf.sessionTimeout);
-                                          } else if (backgroundStartTime == 0) {
-                                              backgroundStartTime = currentTime;
-                                          } else if ((currentTime - backgroundStartTime) >= strongSelf.sessionTimeout) {
-                                              processSession(currentTime - timeAppWentToBackground);
-                                          }
-                                      } else {
-                                          backgroundStartTime = 0;
-
-                                          if (!strongSelf->uploadSource) {
-                                              [strongSelf beginUploadTimer];
-                                          }
-                                      }
+                                              
+                                              __strong MPBackendController *strongSelf = weakSelf;
+                                              if (!strongSelf) {
+                                                  return;
+                                              }
+                                              
+                                              strongSelf->longSession = backgroundTimeRemaining > kMPRemainingBackgroundTimeMinimumThreshold;
+                                              
+                                              if (!strongSelf->longSession) {
+                                                  NSTimeInterval currentTime = [[NSDate date] timeIntervalSince1970];
+                                                  
+                                                  void(^processSession)(NSTimeInterval) = ^(NSTimeInterval timeout) {
+                                                      [strongSelf endBackgroundTimer];
+                                                      strongSelf.session.backgroundTime += timeout;
+                                                      
+                                                      [strongSelf processOpenSessionsIncludingCurrent:YES
+                                                                                    completionHandler:^(BOOL success) {
+                                                                                        [MPStateMachine setRunningInBackground:NO];
+                                                                                        [strongSelf broadcastSessionDidEnd:strongSelf->_session];
+                                                                                        strongSelf->_session = nil;
+                                                                                        
+                                                                                        if (strongSelf.eventSet.count == 0) {
+                                                                                            strongSelf->_eventSet = nil;
+                                                                                            
+                                                                                        }
+                                                                                        
+                                                                                        MPILogDebug(@"SDK has ended background activity.");
+                                                                                        [strongSelf endBackgroundTask];
+                                                                                    }];
+                                                  };
+                                                  
+                                                  if ((MINIMUM_SESSION_TIMEOUT + 0.1) >= strongSelf.sessionTimeout) {
+                                                      processSession(strongSelf.sessionTimeout);
+                                                  } else if (backgroundStartTime == 0) {
+                                                      backgroundStartTime = currentTime;
+                                                  } else if ((currentTime - backgroundStartTime) >= strongSelf.sessionTimeout) {
+                                                      processSession(currentTime - timeAppWentToBackground);
+                                                  }
+                                              } else {
+                                                  backgroundStartTime = 0;
+                                                  
+                                                  if (!strongSelf->uploadSource) {
+                                                      [strongSelf beginUploadTimer];
+                                                  }
+                                              }
+                                          });
+                                      });
                                   } cancelHandler:^{
                                       __strong MPBackendController *strongSelf = weakSelf;
                                       if (strongSelf) {
@@ -2183,7 +2197,7 @@ static BOOL appBackgrounded = NO;
                     messageInfo[messageTypeBreadcrumbKey] = breadcrumbs;
                     
                     NSNumber *sessionNumber = self.session.sessionNumber;
-                    if (sessionNumber) {
+                    if (sessionNumber != nil) {
                         messageInfo[kMPSessionNumberKey] = sessionNumber;
                     }
                 }
@@ -2832,6 +2846,12 @@ static BOOL appBackgrounded = NO;
     }
 }
 
+- (void)clearUserAttributes {
+    [[MPIUserDefaults standardUserDefaults] removeMPObjectForKey:@"ua"];
+    [[MPIUserDefaults standardUserDefaults] synchronize];
+    _userAttributes = nil;
+}
+
 #if TARGET_OS_IOS == 1
 - (MPExecStatus)beginLocationTrackingWithAccuracy:(CLLocationAccuracy)accuracy distanceFilter:(CLLocationDistance)distance authorizationRequest:(MPLocationAuthorizationRequest)authorizationRequest {
     NSAssert(self.initializationStatus != MPInitializationStatusNotStarted, @"\n****\n  Location tracking cannot begin prior to starting the mParticle SDK.\n****\n");
@@ -2900,8 +2920,11 @@ static BOOL appBackgrounded = NO;
                                           kMPPushStatusKey:status}
                                         mutableCopy];
     
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated-declarations"
     UIUserNotificationSettings *userNotificationSettings = [[UIApplication sharedApplication] currentUserNotificationSettings];
     NSUInteger notificationTypes = userNotificationSettings.types;
+#pragma clang diagnostic pop
     messageInfo[kMPDeviceSupportedPushNotificationTypesKey] = @(notificationTypes);
     
     if ([MPStateMachine sharedInstance].deviceTokenType.length > 0) {

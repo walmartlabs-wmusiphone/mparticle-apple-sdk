@@ -98,15 +98,17 @@ Kit | CocoaPods | Carthage
 ----|:---------:|:-------:
 [Adjust](https://github.com/mparticle-integrations/mparticle-apple-integration-adjust)                |  ✓ | ✓
 [Appboy](https://github.com/mparticle-integrations/mparticle-apple-integration-appboy)                |  ✓ | ✓
+[Adobe](https://github.com/mparticle-integrations/mparticle-apple-integration-adobe)                  |  ✓ | ✓
 [AppsFlyer](https://github.com/mparticle-integrations/mparticle-apple-integration-appsflyer)          |  ✓ | ✓ 
-[Apptentive](https://github.com/mparticle-integrations/mparticle-apple-integration-apptentive)        |  ✓ |   
+[Apptentive](https://github.com/mparticle-integrations/mparticle-apple-integration-apptentive)        |  ✓ | ✓ 
 [Apptimize](https://github.com/mparticle-integrations/mparticle-apple-integration-apptimize)          |  ✓ |   
 [Apteligent](https://github.com/mparticle-integrations/mparticle-apple-integration-apteligent)        |  ✓ |  
 [Branch Metrics](https://github.com/mparticle-integrations/mparticle-apple-integration-branchmetrics) |  ✓ | ✓
 [Button](https://github.com/mparticle-integrations/mparticle-apple-integration-button)                |  ✓ | ✓
 [comScore](https://github.com/mparticle-integrations/mparticle-apple-integration-comscore)            |  ✓ |  
 [Flurry](https://github.com/mparticle-integrations/mparticle-apple-integration-flurry)                |  ✓ |  
-[Iterable](https://github.com/mparticle-integrations/mparticle-apple-integration-iterable)            |  ✓ |  
+[Instabot](https://github.com/mparticle-integrations/mparticle-apple-integration-instabot)            |  ✓ |  
+[Iterable](https://github.com/mparticle-integrations/mparticle-apple-integration-iterable)            |  ✓ | ✓ 
 [Kahuna](https://github.com/mparticle-integrations/mparticle-apple-integration-kahuna)                |  ✓ |  
 [Kochava](https://github.com/mparticle-integrations/mparticle-apple-integration-kochava)              |  ✓ |  
 [Leanplum](https://github.com/mparticle-integrations/mparticle-apple-integration-leanplum)            |  ✓ |  

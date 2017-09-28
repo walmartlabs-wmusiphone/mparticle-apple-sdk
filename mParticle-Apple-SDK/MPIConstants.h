@@ -28,7 +28,7 @@
 #define ARCHIVED_MESSAGES_DIRECTORY_PATH [NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask, YES)[0] stringByAppendingPathComponent:@"ArchivedMessages"];
 #define STATE_MACHINE_DIRECTORY_PATH [NSSearchPathForDirectoriesInDomains(NSCachesDirectory, NSUserDomainMask, YES)[0] stringByAppendingPathComponent:@"StateMachine"];
 
-#define MPIsNull(object) (!(object) || (NSNull *)(object) == [NSNull null])
+#define MPIsNull(object) ((object) == nil || (NSNull *)(object) == [NSNull null])
 
 typedef NS_ENUM(NSInteger, MPUploadStatus) {
     MPUploadStatusUnknown = -1,
@@ -215,7 +215,6 @@ extern NSString * _Nonnull const kMPRemoteConfigLocationKey;
 extern NSString * _Nonnull const kMPRemoteConfigLocationModeKey;
 extern NSString * _Nonnull const kMPRemoteConfigLocationAccuracyKey;
 extern NSString * _Nonnull const kMPRemoteConfigLocationMinimumDistanceKey;
-extern NSString * _Nonnull const kMPRemoteConfigLatestSDKVersionKey;
 extern NSString * _Nonnull const kMPRemoteConfigRampKey;
 extern NSString * _Nonnull const kMPRemoteConfigTriggerKey;
 extern NSString * _Nonnull const kMPRemoteConfigTriggerEventsKey;

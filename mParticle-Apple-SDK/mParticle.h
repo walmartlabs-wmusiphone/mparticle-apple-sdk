@@ -38,6 +38,7 @@
 #import "MPUserSegments.h"
 #import "NSArray+MPCaseInsensitive.h"
 #import "NSDictionary+MPCaseInsensitive.h"
+#import "MPKitAPI.h"
 #import <UIKit/UIKit.h>
 
 #if TARGET_OS_IOS == 1
@@ -506,6 +507,14 @@ NS_ASSUME_NONNULL_BEGIN
 - (MPKitExecStatus *)clearIntegrationAttributesForKit:(NSNumber *)kitCode;
 
 #pragma mark - Kits
+/**
+ Allows you to schedule code to run after all kits have been initialized. If kits have already been initialized,
+ your block will be invoked immediately. If not, your block will be copied and the copy will be invoked once
+ kit initialization is finished.
+ @param block A block to be invoked once kits are initialized
+ */
+- (void)onKitsInitialized:(void(^)(void))block;
+
 /**
  Returns whether a kit is active or not. You can retrieve if a kit has been already initialized and
  can be used.

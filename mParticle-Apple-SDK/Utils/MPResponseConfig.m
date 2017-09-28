@@ -46,7 +46,6 @@
     if (dataReceivedFromServer) {
         [[MPKitContainer sharedInstance] configureKits:_configuration[kMPRemoteConfigKitsKey]];
     }
-    stateMachine.latestSDKVersion = _configuration[kMPRemoteConfigLatestSDKVersionKey];
     [stateMachine configureCustomModules:_configuration[kMPRemoteConfigCustomModuleSettingsKey]];
     [stateMachine configureRampPercentage:_configuration[kMPRemoteConfigRampKey]];
     [stateMachine configureTriggers:_configuration[kMPRemoteConfigTriggerKey]];
@@ -72,19 +71,19 @@
     
     // Session timeout
     NSNumber *auxNumber = _configuration[kMPRemoteConfigSessionTimeoutKey];
-    if (auxNumber) {
+    if (auxNumber != nil) {
         [MParticle sharedInstance].sessionTimeout = [auxNumber doubleValue];
     }
     
     // Upload interval
     auxNumber = !MPIsNull(_configuration[kMPRemoteConfigUploadIntervalKey]) ? _configuration[kMPRemoteConfigUploadIntervalKey] : nil;
-    if (auxNumber) {
+    if (auxNumber != nil) {
         [MParticle sharedInstance].uploadInterval = [auxNumber doubleValue];
     }
     
     // Session history
     auxNumber = !MPIsNull(_configuration[kMPRemoteConfigIncludeSessionHistory]) ? _configuration[kMPRemoteConfigIncludeSessionHistory] : nil;
-    stateMachine.shouldUploadSessionHistory = auxNumber ? [auxNumber boolValue] : YES;
+    stateMachine.shouldUploadSessionHistory = auxNumber != nil ? [auxNumber boolValue] : YES;
     
 #if TARGET_OS_IOS == 1
     // Push notifications

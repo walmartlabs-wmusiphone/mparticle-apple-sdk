@@ -691,6 +691,57 @@
     [self waitForExpectationsWithTimeout:1 handler:nil];
 }
 
+- (void)testFilterEventTypeNavigation {
+    NSArray *configurations = @[
+                                @{
+                                    @"id":@(42),
+                                    @"as":@{
+                                            @"secretKey":@"MySecretKey"
+                                            },
+                                    @"hs":@{
+                                            @"et":@{@"49":@0}
+                                            }
+                                    }
+                                ];
+    
+    [kitContainer configureKits:nil];
+    [kitContainer configureKits:configurations];
+    
+    MPEvent *event = [[MPEvent alloc] initWithName:@"Dinosaur Run" type:MPEventTypeNavigation];
+    
+    NSSet<id<MPExtensionProtocol>> *registeredKits = [MPKitContainer registeredKits];
+    id registeredKit = [[registeredKits objectsPassingTest:^BOOL(id<MPExtensionProtocol>  _Nonnull obj, BOOL * _Nonnull stop) {
+        if ([obj conformsToProtocol:@protocol(MPExtensionKitProtocol)]) {
+            id<MPExtensionKitProtocol> kitExtension = (id<MPExtensionKitProtocol>)obj;
+            if (kitExtension.code.intValue == 42) {
+                return YES;
+            }
+        }
+        return NO;
+    }] anyObject];
+    
+    XCTestExpectation *notFilteringExpectation = [self expectationWithDescription:@"Not filtering screen events by event type"];
+    [kitContainer filter:registeredKit
+                forEvent:event
+                selector:@selector(logScreen:)
+       completionHandler:^(MPKitFilter *kitFilter, BOOL finished) {
+           XCTAssertNotNil(kitFilter, @"Filter should not have been nil.");
+           XCTAssertFalse(kitFilter.shouldFilter, @"Event type filtering should not be taking place for screen events.");
+           [notFilteringExpectation fulfill];
+       }];
+    
+    XCTestExpectation *filteringExpectation = [self expectationWithDescription:@"Filtering non-screen events by event type"];
+    [kitContainer filter:registeredKit
+                forEvent:event
+                selector:@selector(logEvent:)
+       completionHandler:^(MPKitFilter *kitFilter, BOOL finished) {
+           XCTAssertNotNil(kitFilter, @"Filter should not have been nil.");
+           XCTAssertTrue(kitFilter.shouldFilter, @"Non-screen event should have been filtered by event type");
+           [filteringExpectation fulfill];
+       }];
+    [self waitForExpectationsWithTimeout:1 handler:nil];
+}
+
 - (void)testFilterEventNameAndAttributes {
     NSArray *configurations = @[
                                 @{
@@ -1365,8 +1416,7 @@
                               XCTAssertNotNil(forwardEvent);
                               XCTAssertEqualObjects(forwardEvent.name, @"new_premium_subscriber");
                               XCTAssertNotNil(forwardEvent.info);
-                              XCTAssertEqual(forwardEvent.info.count, 4);
-                              XCTAssertEqualObjects(forwardEvent.info[@"af_customer_user_id"], @"trex@shortarmsdinosaurs.com");
+                              XCTAssertEqual(forwardEvent.info.count, 3);
                               
                               [expectation fulfill];
                           }
@@ -1540,10 +1590,6 @@
                                 kitHandler:^(id<MPKitProtocol> _Nonnull kit, MPKitFilter * _Nonnull kitFilter, MPKitExecStatus *__autoreleasing _Nonnull * _Nonnull execStatus) {
                                     if ([[[kit class] kitCode] isEqualToNumber:@(MPKitInstanceAppsFlyer)]) {
                                         MPEvent *event = kitFilter.forwardEvent;
-                                        NSString *customerUserId = event.info[@"af_customer_user_id"];
-                                        XCTAssertNotNil(customerUserId);
-                                        XCTAssertEqualObjects(customerUserId, @"trex@shortarmsdinosaurs.com");
-                                        
                                         XCTAssertEqualObjects(event.info[@"af_quantity"], @"1");
                                         XCTAssertEqualObjects(event.info[@"af_content_id"], @"OutATime");
                                         XCTAssertEqualObjects(event.info[@"af_content_type"], @"Time Machine");
@@ -1649,7 +1695,7 @@
                           if ([[[kit class] kitCode] isEqualToNumber:@(MPKitInstanceAppsFlyer)]) {
                               XCTAssertNotNil(forwardEvent);
                               XCTAssertNotNil(forwardEvent.info);
-                              XCTAssertEqual(forwardEvent.info.count, 3);
+                              XCTAssertEqual(forwardEvent.info.count, 2);
                               
                               [foundEventNames addObject:forwardEvent.name];
                               
@@ -1871,7 +1917,7 @@
                               XCTAssertNotNil(forwardEvent);
                               XCTAssertEqualObjects(forwardEvent.name, @"af_add_payment_info");
                               XCTAssertNotNil(forwardEvent.info);
-                              XCTAssertEqual(forwardEvent.info.count, 3);
+                              XCTAssertEqual(forwardEvent.info.count, 2);
                               XCTAssertEqualObjects(forwardEvent.info[@"af_success"], @"True");
                               
                               [expectation fulfill];
@@ -1945,7 +1991,7 @@
                               XCTAssertNotNil(forwardEvent);
                               XCTAssertEqualObjects(forwardEvent.name, @"af_achievement_unlocked");
                               XCTAssertNotNil(forwardEvent.info);
-                              XCTAssertEqual(forwardEvent.info.count, 2);
+                              XCTAssertEqual(forwardEvent.info.count, 1);
                               XCTAssertEqualObjects(forwardEvent.info[@"af_description"], @"this is a description");
                               
                               [expectation fulfill];

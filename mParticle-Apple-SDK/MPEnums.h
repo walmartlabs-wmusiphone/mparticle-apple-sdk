@@ -194,7 +194,12 @@ typedef NS_ENUM(NSUInteger, MPKitInstance) {
     /** Kit code for Button */
     MPKitInstanceButton = 1022,
     /** Kit code for Singular */
-    MPKitInstanceSingular = 119
+    MPKitInstanceSingular = 119,
+    /** Kit code for Adobe */
+    MPKitInstanceAdobe = 124,
+    /** Kit code for Instabot */
+    MPKitInstanceInstabot = 123
+    
 };
 
 /// Log Levels
