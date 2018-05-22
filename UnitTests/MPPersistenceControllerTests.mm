@@ -14,6 +14,7 @@
 #import "MPKitExecStatus.h"
 #import "mParticle.h"
 #import "MPUploadBuilder.h"
+#import "sqlite3.h"
 
 #define DATABASE_TESTS_EXPECTATIONS_TIMEOUT 1
 
@@ -59,6 +60,34 @@
                                                    };
     
     return remoteNotificationDictionary;
+}
+
+- (void)testMultiThreadedAccess {
+    NSDate *startDate = [NSDate date];
+    NSDate *endDate = [startDate dateByAddingTimeInterval:1];
+    dispatch_block_t workBlock = ^{
+        while (-[[NSDate date] timeIntervalSinceDate:endDate] > 0) {
+            MPSession *session = [[MPSession alloc] initWithStartTime:[[NSDate date] timeIntervalSince1970] userId:[MPPersistenceController mpId]];
+            
+            MPPersistenceController *persistence = [MPPersistenceController sharedInstance];
+            [persistence saveSession:session];
+            NSMutableArray<MPSession *> *sessions = [persistence fetchSessions];
+            [persistence deleteSession:session];
+            sessions = [persistence fetchSessions];
+        }
+    };
+    dispatch_async(messageQueue, ^{
+        workBlock();
+    });
+    workBlock();
+}
+
+- (void)testPlatformSqliteAssumptions {
+    int safe = sqlite3_threadsafe();
+    XCTAssertEqual(safe, 2);
+    const char *version = sqlite3_libversion();
+    NSString *stringVersion = [NSString stringWithCString:version encoding:NSUTF8StringEncoding];
+    XCTAssertEqualObjects(stringVersion, @"3.19.3");
 }
 
 - (void)testSession {
