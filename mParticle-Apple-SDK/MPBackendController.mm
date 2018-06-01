@@ -486,7 +486,6 @@ static BOOL appBackgrounded = NO;
 }
 
 - (void)processOpenSessionsEndingCurrent:(BOOL)endCurrentSession completionHandler:(void (^)(BOOL success))completionHandler {
-    [self endUploadTimer];
     
     MPPersistenceController *persistence = [MPPersistenceController sharedInstance];
     
@@ -1028,7 +1027,7 @@ static BOOL appBackgrounded = NO;
         resignedActive = NO;
         return;
     }
-    
+    [self beginUploadTimer];
     dispatch_async(messageQueue, ^{
         BOOL sessionExpired = self->_session == nil;
         if (!sessionExpired) {
@@ -1049,7 +1048,7 @@ static BOOL appBackgrounded = NO;
         MPMessage *message = (MPMessage *)[messageBuilder build];
         [self saveMessage:message updateSession:MParticle.sharedInstance.automaticSessionTracking];
         
-        [self beginUploadTimer];
+       
         MPILogVerbose(@"Application Did Become Active");
     });
 }
@@ -1065,45 +1064,47 @@ static BOOL appBackgrounded = NO;
     backgroundSource = [self createSourceTimer:(MINIMUM_SESSION_TIMEOUT + 0.1)
                                   eventHandler:^{
                                       
-                                      __block NSTimeInterval backgroundTimeRemaining;
-                                      dispatch_sync(dispatch_get_main_queue(), ^{
-                                          backgroundTimeRemaining = [[UIApplication sharedApplication] backgroundTimeRemaining];
-                                      });
+                                      NSTimeInterval backgroundTimeRemaining = [[UIApplication sharedApplication] backgroundTimeRemaining];
                                       
-                                      __strong MPBackendController *strongSelf = weakSelf;
-                                      if (!strongSelf) {
-                                          return;
-                                      }
-                                      
-                                      strongSelf->longSession = backgroundTimeRemaining > kMPRemainingBackgroundTimeMinimumThreshold;
-                                      
-                                      if (!strongSelf->longSession) {
-                                          NSTimeInterval timeInBackground =  [[NSDate date] timeIntervalSince1970] - self->timeAppWentToBackground;
-                                          if (timeInBackground >= strongSelf.sessionTimeout) {
-                                              [strongSelf endBackgroundTimer];
-                                              [[MPPersistenceController sharedInstance] updateSession:strongSelf.session];
-                                              
-                                              [strongSelf processOpenSessionsEndingCurrent:YES
-                                                                         completionHandler:^(BOOL success) {
-                                                                             [MPStateMachine setRunningInBackground:NO];
-                                                                             
-                                                                             MPILogDebug(@"SDK has ended background activity.");
-                                                                             [strongSelf endBackgroundTask];
-                                                                         }];
-                                              
-                                          }
-                                      } else {
-                                          self->backgroundStartTime = 0;
+                                      dispatch_async([MParticle messageQueue], ^{
                                           
-                                          if (!strongSelf->uploadSource) {
-                                              [strongSelf beginUploadTimer];
+                                          __strong MPBackendController *strongSelf = weakSelf;
+                                          if (!strongSelf) {
+                                              return;
                                           }
-                                      }
+                                          
+                                          strongSelf->longSession = backgroundTimeRemaining > kMPRemainingBackgroundTimeMinimumThreshold;
+                                          
+                                          if (!strongSelf->longSession) {
+                                              NSTimeInterval timeInBackground =  [[NSDate date] timeIntervalSince1970] - self->timeAppWentToBackground;
+                                              if (timeInBackground >= strongSelf.sessionTimeout) {
+                                                  [strongSelf endBackgroundTimer];
+                                                  [[MPPersistenceController sharedInstance] updateSession:strongSelf.session];
+                                                  
+                                                  [strongSelf processOpenSessionsEndingCurrent:YES
+                                                                             completionHandler:^(BOOL success) {
+                                                                                 [MPStateMachine setRunningInBackground:NO];
+                                                                                 
+                                                                                 MPILogDebug(@"SDK has ended background activity.");
+                                                                                 [strongSelf endBackgroundTask];
+                                                                             }];
+                                                  
+                                              }
+                                          } else {
+                                              self->backgroundStartTime = 0;
+                                              
+                                              if (!strongSelf->uploadSource) {
+                                                  [strongSelf beginUploadTimer];
+                                              }
+                                          }
+                                      });
                                   } cancelHandler:^{
-                                      __strong MPBackendController *strongSelf = weakSelf;
-                                      if (strongSelf) {
-                                          strongSelf->backgroundSource = nil;
-                                      }
+                                      dispatch_async([MParticle messageQueue], ^{
+                                          __strong MPBackendController *strongSelf = weakSelf;
+                                          if (strongSelf) {
+                                              strongSelf->backgroundSource = nil;
+                                          }
+                                      });
                                   }];
 }
 
@@ -1123,22 +1124,30 @@ static BOOL appBackgrounded = NO;
         
         strongSelf->uploadSource = [strongSelf createSourceTimer:strongSelf.uploadInterval
                                                     eventHandler:^{
-                                                        [strongSelf uploadDatabaseWithCompletionHandler:nil];
+                                                        dispatch_async([MParticle messageQueue], ^{
+                                                            __strong MPBackendController *strongSelf = weakSelf;
+                                                            if (!strongSelf) {
+                                                                return;
+                                                            }
+                                                            
+                                                            [strongSelf uploadDatabaseWithCompletionHandler:nil];
+                                                        });
+                                                        
                                                     } cancelHandler:^{
-                                                        strongSelf->uploadSource = nil;
+                                                        
                                                     }];
     });
 }
 
 - (dispatch_source_t)createSourceTimer:(uint64_t)interval eventHandler:(dispatch_block_t)eventHandler cancelHandler:(dispatch_block_t)cancelHandler {
-    dispatch_source_t sourceTimer = dispatch_source_create(DISPATCH_SOURCE_TYPE_TIMER, 0, 0, messageQueue);
+    dispatch_source_t sourceTimer = dispatch_source_create(DISPATCH_SOURCE_TYPE_TIMER, 0, 0, dispatch_get_main_queue());
     
     if (sourceTimer) {
         dispatch_source_set_timer(sourceTimer, dispatch_walltime(NULL, 0), interval * NSEC_PER_SEC, 0.1 * NSEC_PER_SEC);
         dispatch_source_set_event_handler(sourceTimer, eventHandler);
         dispatch_source_set_cancel_handler(sourceTimer, cancelHandler);
         
-        dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(interval * NSEC_PER_SEC)), messageQueue, ^{
+        dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(interval * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
             dispatch_resume(sourceTimer);
         });
     }
@@ -1155,6 +1164,7 @@ static BOOL appBackgrounded = NO;
 - (void)endUploadTimer {
     if (uploadSource) {
         dispatch_source_cancel(uploadSource);
+        uploadSource = nil;
     }
 }
 
@@ -1810,18 +1820,26 @@ static BOOL appBackgrounded = NO;
     return MPExecStatusSuccess;
 }
 
-- (void)startWithKey:(NSString *)apiKey secret:(NSString *)secret firstRun:(BOOL)firstRun installationType:(MPInstallationType)installationType proxyAppDelegate:(BOOL)proxyAppDelegate startKitsAsync:(BOOL)startKitsAsync completionHandler:(dispatch_block_t)completionHandler {
+- (void)startWithKey:(NSString *)apiKey secret:(NSString *)secret firstRun:(BOOL)firstRun installationType:(MPInstallationType)installationType proxyAppDelegate:(BOOL)proxyAppDelegate startKitsAsync:(BOOL)startKitsAsync consentState:(MPConsentState *)consentState completionHandler:(dispatch_block_t)completionHandler {
 #if !defined(MPARTICLE_APP_EXTENSIONS)
     if (proxyAppDelegate) {
         [self proxyOriginalAppDelegate];
     }
 #endif
+    
+    [MPPersistenceController setConsentState:consentState forMpid:[MPPersistenceController mpId]];
+    
+    dispatch_block_t startKitsBlock = ^{
+        [MPKitContainer sharedInstance];
+        MParticle.sharedInstance.identity.currentUser.consentState = consentState;
+    };
+    
     if (startKitsAsync) {
         dispatch_async(dispatch_get_main_queue(), ^{
-            [MPKitContainer sharedInstance];
+            startKitsBlock();
         });
     } else {
-        [MPKitContainer sharedInstance];
+        startKitsBlock();
     }
     
     
@@ -2180,7 +2198,11 @@ static BOOL appBackgrounded = NO;
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wdeprecated-declarations"
 #if !defined(MPARTICLE_APP_EXTENSIONS)
-        UIUserNotificationSettings *userNotificationSettings = [[UIApplication sharedApplication] currentUserNotificationSettings];
+        __block UIUserNotificationSettings *userNotificationSettings = nil;
+        dispatch_sync(dispatch_get_main_queue(), ^{
+            userNotificationSettings = [[UIApplication sharedApplication] currentUserNotificationSettings];
+        });
+        
         NSUInteger notificationTypes = userNotificationSettings.types;
 #pragma clang diagnostic pop
         messageInfo[kMPDeviceSupportedPushNotificationTypesKey] = @(notificationTypes);
