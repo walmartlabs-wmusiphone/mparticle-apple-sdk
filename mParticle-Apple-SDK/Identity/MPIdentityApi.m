@@ -49,6 +49,12 @@ typedef NS_ENUM(NSUInteger, MPIdentityRequestType) {
 - (void)setUserId:(NSNumber *)userId;
 @end
 
+@interface MPKitContainer ()
+
+@property (nonatomic, strong) NSMutableDictionary<NSNumber *, MPKitConfiguration *> *kitConfigurations;
+
+@end
+
 @implementation MPIdentityApi
 
 @synthesize currentUser = _currentUser;
@@ -161,6 +167,11 @@ typedef NS_ENUM(NSUInteger, MPIdentityRequestType) {
         [[NSNotificationCenter defaultCenter] postNotificationName:mParticleIdentityStateChangeListenerNotification object:nil userInfo:userInfo];
     }
     
+    NSArray<NSDictionary *> *kitConfig = [[MPKitContainer sharedInstance].originalConfig copy];
+    if (kitConfig) {
+        [[MPKitContainer sharedInstance] configureKits:kitConfig];
+    }
+    
     // Forwarding calls to kits
     switch (identityRequestType) {
         case MPIdentityRequestIdentify: {
@@ -231,6 +242,20 @@ typedef NS_ENUM(NSUInteger, MPIdentityRequestType) {
     } else {
         return nil;
     }
+}
+
+- (NSArray<MParticleUser *> *)getAllUsers {
+    MPIUserDefaults *userDefaults = [MPIUserDefaults standardUserDefaults];
+    NSMutableArray<MParticleUser *> *userArray = [[NSMutableArray alloc] init];
+    
+    for (NSNumber *userID in [userDefaults userIDsInUserDefaults]) {
+        MParticleUser *user = [[MParticleUser alloc] init];
+        user.userId = userID;
+        
+        [userArray addObject:user];
+    }
+    
+    return userArray;
 }
 
 - (void)identifyNoDispatch:(MPIdentityApiRequest *)identifyRequest completion:(nullable MPIdentityApiResultCallback)completion {

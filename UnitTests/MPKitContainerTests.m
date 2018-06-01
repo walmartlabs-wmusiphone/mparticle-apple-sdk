@@ -21,10 +21,18 @@
 #import "MPIUserDefaults.h"
 #import "MPForwardQueueParameters.h"
 #import "MPResponseConfig.h"
+#import "MPConsentKitFilter.h"
+#import "MPPersistenceController.h"
+#import "MPKitInstanceValidator.h"
 
 @interface MParticle ()
 + (dispatch_queue_t)messageQueue;
 @end
+
+@interface MPKitInstanceValidator(BackendControllerTests)
++ (void)includeUnitTestKits:(NSArray<NSNumber *> *)kitCodes;
+@end
+
 
 #pragma mark - MPKitContainer category for unit tests
 @interface MPKitContainer(Tests)
@@ -34,6 +42,7 @@
 @property (nonatomic, readonly) NSMutableDictionary<NSNumber *, MPKitConfiguration *> *kitConfigurations;
 
 - (BOOL)isDisabledByBracketConfiguration:(NSDictionary *)bracketConfiguration;
+- (BOOL)isDisabledByConsentKitFilter:(MPConsentKitFilter *)kitFilter;
 - (void)replayQueuedItems;
 - (NSDictionary *)validateAndTransformToSafeConfiguration:(NSDictionary *)configuration;
 - (id)transformValue:(NSString *)originalValue dataType:(MPDataType)dataType;
@@ -91,6 +100,7 @@
                                         };
         
         MPKitConfiguration *kitConfiguration = [[MPKitConfiguration alloc] initWithDictionary:configuration];
+        [MPKitInstanceValidator includeUnitTestKits:@[@42]];
         [kitContainer startKit:@42 configuration:kitConfiguration];
     }
     
@@ -104,6 +114,7 @@
 
 - (void)tearDown {
     kitContainer = nil;
+    [[MParticle sharedInstance] clearMParticleData];
 
     [super tearDown];
 }
@@ -133,13 +144,6 @@
     
     userDefaults[@"ui"] = userIdentities;
     
-    [userDefaults synchronize];
-}
-
-- (void)resetUserAttributesAndIdentities {
-    MPIUserDefaults *userDefaults = [MPIUserDefaults standardUserDefaults];
-    [userDefaults removeMPObjectForKey:@"ua"];
-    [userDefaults removeMPObjectForKey:@"ui"];
     [userDefaults synchronize];
 }
 
@@ -190,10 +194,7 @@
                 XCTAssertEqualObjects(@"cool app key 2", kitConfiguration.configuration[@"appId"]);
             }
         }
-        
-        [[MPIUserDefaults standardUserDefaults] deleteConfiguration];
-        [self resetUserAttributesAndIdentities];
-        
+
         [expectation fulfill];
     });
     
@@ -273,9 +274,6 @@
             XCTAssertFalse([[kitConfiguration kitCode] isEqual:@(312)]);
         }
         
-        [[MPIUserDefaults standardUserDefaults] deleteConfiguration];
-        [self resetUserAttributesAndIdentities];
-        
         [expectation fulfill];
     });
     
@@ -283,6 +281,9 @@
 }
 
 - (void)testIsDisabledByBracketConfiguration {
+    MPIUserDefaults *userDefaults = [MPIUserDefaults standardUserDefaults];
+    userDefaults[@"mpid"] = @2;
+    
     NSDictionary *bracketConfig = @{@"hi":@(0),@"lo":@(0)};
     XCTAssertTrue([kitContainer isDisabledByBracketConfiguration:bracketConfig]);
     
@@ -1377,8 +1378,6 @@
     });
     
     [self waitForExpectationsWithTimeout:1 handler:nil];
-    
-    [self resetUserAttributesAndIdentities];
 }
 
 - (void)testForwardAppsFlyerCommerceEvent {
@@ -1556,8 +1555,6 @@
     });
     
     [self waitForExpectationsWithTimeout:1 handler:nil];
-    
-    [self resetUserAttributesAndIdentities];
 }
 
 - (void)testMatchArrayProjection {
@@ -1666,8 +1663,6 @@
     });
     
     [self waitForExpectationsWithTimeout:1 handler:nil];
-    
-    [self resetUserAttributesAndIdentities];
 }
 
 - (void)testNonMatchingMatchArrayProjection {
@@ -1744,8 +1739,6 @@
     });
     
     [self waitForExpectationsWithTimeout:1 handler:nil];
-    
-    [self resetUserAttributesAndIdentities];
 }
 
 - (void)testNonMatchingAttributeArrayProjection {
@@ -1813,8 +1806,6 @@
     });
     
     [self waitForExpectationsWithTimeout:1 handler:nil];
-    
-    [self resetUserAttributesAndIdentities];
 }
 
 - (void)testHashProjection {
@@ -1889,8 +1880,6 @@
     });
     
     [self waitForExpectationsWithTimeout:1 handler:nil];
-    
-    [self resetUserAttributesAndIdentities];
 }
 
 - (void)testAttributeHashProjection {
@@ -1965,8 +1954,6 @@
     });
     
     [self waitForExpectationsWithTimeout:1 handler:nil];
-    
-    [self resetUserAttributesAndIdentities];
 }
 
 - (void)testAllocationAndDeallocation {
@@ -2068,8 +2055,6 @@
     });
     
     [self waitForExpectationsWithTimeout:1 handler:nil];
-    
-    [self resetUserAttributesAndIdentities];
 }
 
 - (void)testShouldDelayUploadMaxTime {
@@ -2077,6 +2062,52 @@
     [localKitContainer setKitsInitialized:NO];
     XCTAssertFalse([localKitContainer shouldDelayUpload:0]);
     XCTAssertTrue([localKitContainer shouldDelayUpload:10000]);
+}
+
+- (void)testIsDisabledByConsentKitFilter {
+    
+    MPConsentKitFilter *filter = [[MPConsentKitFilter alloc] init];
+    
+    filter.shouldIncludeOnMatch = YES;
+    
+    MPConsentKitFilterItem *item = [[MPConsentKitFilterItem alloc] init];
+    item.consented = YES;
+    item.javascriptHash = -1729075708;
+    
+    NSMutableArray<MPConsentKitFilterItem *> *filterItems = [NSMutableArray array];
+    [filterItems addObject:item];
+    
+    filter.filterItems = [filterItems copy];
+    
+    MPConsentState *state = [[MPConsentState alloc] init];
+    
+    NSMutableDictionary<NSString *,MPGDPRConsent *> *gdprState = [NSMutableDictionary dictionary];
+    
+    MPGDPRConsent *gdprConsent = [[MPGDPRConsent alloc] init];
+    
+    gdprConsent.consented = YES;
+    gdprConsent.document = @"foo-document-1";
+    
+    NSDate *date = [NSDate date];
+    gdprConsent.timestamp = date;
+    
+    gdprConsent.location = @"foo-location-1";
+    gdprConsent.hardwareId = @"foo-hardware-id-1";
+    
+    gdprState[@"Processing"] = gdprConsent;
+    
+    [state setGDPRConsentState:[gdprState copy]];
+    
+    [MPPersistenceController setConsentState:state forMpid:[MPPersistenceController mpId]];
+    MParticle.sharedInstance.identity.currentUser.consentState = state;
+    
+    BOOL isDisabled = [[MPKitContainer sharedInstance] isDisabledByConsentKitFilter:filter];
+    XCTAssertFalse(isDisabled);
+    
+    filter.shouldIncludeOnMatch = NO;
+    isDisabled = [[MPKitContainer sharedInstance] isDisabledByConsentKitFilter:filter];
+    XCTAssertTrue(isDisabled);
+    
 }
 
 @end

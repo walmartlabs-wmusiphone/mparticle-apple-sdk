@@ -65,7 +65,8 @@ NSString *const kMPStateKey = @"state";
 @property (nonatomic, strong, nullable) MPKitActivity *kitActivity;
 @property (nonatomic, unsafe_unretained) BOOL initialized;
 @property (nonatomic, strong, nonnull) NSMutableArray *kitsInitializedBlocks;
-
+@property (nonatomic, readwrite) MPNetworkOptions *networkOptions;
+@property (nonatomic, strong, nullable) NSArray<NSDictionary *> *deferredKitConfiguration;
 
 @end
 
@@ -83,6 +84,29 @@ NSString *const kMPStateKey = @"state";
     [description appendFormat:@"  kitCode: %@\n", _kitCode];
     [description appendFormat:@"  kitName: %@\n", _kitName];
     [description appendFormat:@"  linkInfo: %@\n", _linkInfo];
+    [description appendString:@"}"];
+    return description;
+}
+
+@end
+
+@implementation MPNetworkOptions
+
+- (instancetype)init
+{
+    self = [super init];
+    if (self) {
+        _pinningDisabledInDevelopment = NO;
+    }
+    return self;
+}
+
+- (NSString *)description {
+    NSMutableString *description = [[NSMutableString alloc] initWithString:@"MPNetworkOptions {\n"];
+    [description appendFormat:@"  configHost: %@\n", _configHost];
+    [description appendFormat:@"  eventsHost: %@\n", _eventsHost];
+    [description appendFormat:@"  identityHost: %@\n", _identityHost];
+    [description appendFormat:@"  certificates: %@\n", _certificates];
     [description appendString:@"}"];
     return description;
 }
@@ -371,9 +395,7 @@ NSString *const kMPStateKey = @"state";
 }
 
 - (void)setLogLevel:(MPILogLevel)logLevel {
-    dispatch_async(messageQueue, ^{
-        [MPStateMachine sharedInstance].logLevel = logLevel;
-    });
+    [MPStateMachine sharedInstance].logLevel = logLevel;
 }
 
 - (BOOL)optOut {
@@ -503,6 +525,10 @@ NSString *const kMPStateKey = @"state";
         self.uploadInterval = options.uploadInterval;
     }
     
+    if (options.networkOptions) {
+        self.networkOptions = options.networkOptions;
+    }
+    
     NSString *apiKey = options.apiKey;
     NSString *secret = options.apiSecret;
 
@@ -525,6 +551,8 @@ NSString *const kMPStateKey = @"state";
     _automaticSessionTracking = self.options.automaticSessionTracking;
     _customUserAgent = self.options.customUserAgent;
     _collectUserAgent = self.options.collectUserAgent;
+    
+    MPConsentState *consentState = self.options.consentState;
     
     id currentIdentifier = userDefaults[kMPUserIdentitySharedGroupIdentifier];
     if (options.sharedGroupID == currentIdentifier) {
@@ -550,6 +578,7 @@ NSString *const kMPStateKey = @"state";
                         installationType:installationType
                         proxyAppDelegate:proxyAppDelegate
                           startKitsAsync:startKitsAsync
+                            consentState:consentState
                        completionHandler:^{
                            __strong MParticle *strongSelf = weakSelf;
                            
@@ -571,6 +600,18 @@ NSString *const kMPStateKey = @"state";
                                    MPILogError(@"Identify request failed with error: %@", error);
                                }
                                if (options.onIdentifyComplete) {
+                                   
+                                   NSArray<NSDictionary *> *deferredKitConfiguration = self.deferredKitConfiguration;
+                                   
+                                   if (deferredKitConfiguration != nil && [deferredKitConfiguration isKindOfClass:[NSArray class]]) {
+                                       
+                                       dispatch_sync(dispatch_get_main_queue(), ^{
+                                           [[MPKitContainer sharedInstance] configureKits:deferredKitConfiguration];
+                                           weakSelf.deferredKitConfiguration = nil;
+                                       });
+                                       
+                                   }
+                                   
                                    dispatch_async(dispatch_get_main_queue(), ^{
                                        options.onIdentifyComplete(apiResult, error);
                                    });
@@ -705,6 +746,13 @@ NSString *const kMPStateKey = @"state";
     }
 
     return [[MPAppNotificationHandler sharedInstance] continueUserActivity:userActivity restorationHandler:restorationHandler];
+}
+
+- (void)clearMParticleData {
+    dispatch_async(messageQueue, ^{
+        [[MPIUserDefaults standardUserDefaults] resetDefaults];
+        [[MPPersistenceController sharedInstance] resetDatabase];
+    });
 }
 
 #pragma mark Basic tracking
