@@ -44,6 +44,23 @@ static NSString *const NSUserDefaultsPrefix = @"mParticle::";
     return userKey;
 }
 
+- (NSArray<NSNumber *> *)userIDsInUserDefaults {
+    NSArray *keyArray = [[[self customUserDefaults] dictionaryRepresentation] allKeys];
+    
+    NSMutableSet<NSNumber *> *uniqueUserIDs = [[NSMutableSet alloc] init];
+    for (NSString *key in keyArray) {
+        if ([[self customUserDefaults] objectForKey:key] != nil) {
+            NSArray *keyComponents = [key componentsSeparatedByString:@"::"];
+            if (keyComponents.count == 3) {
+                NSNumber *userID = [NSNumber numberWithLongLong:[(NSString *)keyComponents[1] longLongValue]];
+                [uniqueUserIDs addObject:userID];
+            }
+        }
+    }
+
+    return [uniqueUserIDs allObjects];
+}
+
 - (BOOL)isUserSpecificKey:(NSString *)keyName {
     NSArray<NSString *> *userSpecificKeys = [self userSpecificKeys];
     
@@ -267,6 +284,19 @@ static NSString *const NSUserDefaultsPrefix = @"mParticle::";
     [userDefaults removeMPObjectForKey:kMPHTTPETagHeaderKey];
     
     MPILogDebug(@"Configuration Deleted");
+}
+
+- (void)resetDefaults {
+    NSUserDefaults * defs = [NSUserDefaults standardUserDefaults];
+    NSDictionary * dict = [defs dictionaryRepresentation];
+    
+    NSPredicate *predicate = [NSPredicate predicateWithFormat:@"SELF CONTAINS %@", NSUserDefaultsPrefix];
+    NSArray *mParticleKeys = [dict.allKeys filteredArrayUsingPredicate:predicate];
+    
+    for (id key in mParticleKeys) {
+        [defs removeObjectForKey:key];
+    }
+    [defs synchronize];
 }
 
 - (BOOL)isExistingUserId:(NSNumber *)userId {
