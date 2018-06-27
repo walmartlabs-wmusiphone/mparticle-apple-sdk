@@ -54,6 +54,7 @@ static BOOL appBackgrounded = NO;
 
 @interface MParticle ()
 + (dispatch_queue_t)messageQueue;
++ (dispatch_queue_t)networkQueue;
 @end
 
 @interface MPBackendController() {
@@ -69,6 +70,7 @@ static BOOL appBackgrounded = NO;
     UIBackgroundTaskIdentifier backendBackgroundTaskIdentifier;
     dispatch_semaphore_t backendSemaphore;
     dispatch_queue_t messageQueue;
+    dispatch_queue_t networkQueue;
     BOOL longSession;
     BOOL originalAppDelegateProxied;
     BOOL resignedActive;
@@ -95,6 +97,7 @@ static BOOL appBackgrounded = NO;
     self = [super init];
     if (self) {
         messageQueue = [MParticle messageQueue];
+        networkQueue = [MParticle networkQueue];
         _sessionTimeout = DEFAULT_SESSION_TIMEOUT;
         nextCleanUpTime = [[NSDate date] timeIntervalSince1970];
         backendBackgroundTaskIdentifier = UIBackgroundTaskInvalid;
@@ -528,13 +531,17 @@ static BOOL appBackgrounded = NO;
         
         for (NSString *fileName in directoryContents) {
             NSString *filePath = [directoryPath stringByAppendingPathComponent:fileName];
-            MPMessage *message = [NSKeyedUnarchiver unarchiveObjectWithFile:filePath];
-            
-            if (message) {
-                [self saveMessage:message updateSession:NO];
+            @try {
+                MPMessage *message = [NSKeyedUnarchiver unarchiveObjectWithFile:filePath];
+                
+                if (message) {
+                    [self saveMessage:message updateSession:NO];
+                }
+            } @catch (NSException* ex) {
+                MPILogger(MPILogLevelError, @"Failed To retrieve crash messages from archive: %@", ex);
+            } @finally {
+                [fileManager removeItemAtPath:filePath error:nil];
             }
-            
-            [fileManager removeItemAtPath:filePath error:nil];
         }
     }];
 }
@@ -826,21 +833,26 @@ static BOOL appBackgrounded = NO;
     
     __weak MPBackendController *weakSelf = self;
     
-    [self requestConfig:^(BOOL uploadBatch) {
-        if (!uploadBatch) {
-            invokeCompletionHandler(NO);
-            return;
-        }
-        
-        __strong MPBackendController *strongSelf = weakSelf;
-        
-        [strongSelf uploadBatchesWithCompletionHandler:^(BOOL success) {
-            session = nil;
-
-            invokeCompletionHandler(success);
-        }];
-   
-    }];
+    dispatch_async(messageQueue, ^{
+        dispatch_async(self->networkQueue, ^{
+            [self requestConfig:^(BOOL uploadBatch) {
+                if (!uploadBatch) {
+                    invokeCompletionHandler(NO);
+                    return;
+                }
+                
+                __strong MPBackendController *strongSelf = weakSelf;
+                
+                [strongSelf uploadBatchesWithCompletionHandler:^(BOOL success) {
+                    session = nil;
+                    
+                    invokeCompletionHandler(success);
+                }];
+                
+            }];
+        });
+    });
+    
 }
 
 #pragma mark Notification handlers
@@ -887,11 +899,15 @@ static BOOL appBackgrounded = NO;
         [self saveMessage:message updateSession:MParticle.sharedInstance.automaticSessionTracking];
         
         if (![MPStateMachine isAppExtension]) {
-        [self uploadDatabaseWithCompletionHandler:^{
-            if (!MParticle.sharedInstance.automaticSessionTracking) {
-                [self endBackgroundTask];
-            }
-        }];
+            dispatch_async(self->networkQueue, ^{
+                [self uploadDatabaseWithCompletionHandler:^{
+                    dispatch_async(dispatch_get_main_queue(), ^{
+                        if (!MParticle.sharedInstance.automaticSessionTracking) {
+                            [self endBackgroundTask];
+                        }
+                    });
+                }];
+            });
         } else {
             [self endSession];
         }
@@ -918,7 +934,9 @@ static BOOL appBackgrounded = NO;
 #endif
     
     dispatch_async(messageQueue, ^{
-        [self requestConfig:nil];
+        dispatch_async(self->networkQueue, ^{
+            [self requestConfig:nil];
+        });
     });
 }
 
@@ -1082,10 +1100,13 @@ static BOOL appBackgrounded = NO;
                                                   
                                                   [strongSelf processOpenSessionsEndingCurrent:YES
                                                                              completionHandler:^(BOOL success) {
-                                                                                 [MPStateMachine setRunningInBackground:NO];
+                                                                                 dispatch_async(dispatch_get_main_queue(), ^{
+                                                                                     [MPStateMachine setRunningInBackground:NO];
+                                                                                     
+                                                                                     MPILogDebug(@"SDK has ended background activity.");
+                                                                                     [strongSelf endBackgroundTask];
+                                                                                 });
                                                                                  
-                                                                                 MPILogDebug(@"SDK has ended background activity.");
-                                                                                 [strongSelf endBackgroundTask];
                                                                              }];
                                                   
                                               }
@@ -1124,12 +1145,13 @@ static BOOL appBackgrounded = NO;
         strongSelf->uploadSource = [strongSelf createSourceTimer:strongSelf.uploadInterval
                                                     eventHandler:^{
                                                         dispatch_async([MParticle messageQueue], ^{
-                                                            __strong MPBackendController *strongSelf = weakSelf;
-                                                            if (!strongSelf) {
-                                                                return;
-                                                            }
-                                                            
-                                                            [strongSelf uploadDatabaseWithCompletionHandler:nil];
+                                                            dispatch_async(self->networkQueue, ^{
+                                                                __strong MPBackendController *strongSelf = weakSelf;
+                                                                if (!strongSelf) {
+                                                                    return;
+                                                                }
+                                                                [strongSelf uploadDatabaseWithCompletionHandler:nil];
+                                                            });
                                                         });
                                                         
                                                     } cancelHandler:^{
@@ -1828,20 +1850,14 @@ static BOOL appBackgrounded = NO;
     
     [MPPersistenceController setConsentState:consentState forMpid:[MPPersistenceController mpId]];
     
-    dispatch_block_t startKitsBlock = ^{
-        [MPKitContainer sharedInstance];
-        MParticle.sharedInstance.identity.currentUser.consentState = consentState;
-    };
-    
-    if (startKitsAsync) {
+    [MPKitContainer sharedInstance];
+    if (![MPStateMachine sharedInstance].optOut) {
         dispatch_async(dispatch_get_main_queue(), ^{
-            startKitsBlock();
+            [[MPKitContainer sharedInstance] initializeKits];
         });
-    } else {
-        startKitsBlock();
     }
-    
-    
+    MParticle.sharedInstance.identity.currentUser.consentState = consentState;
+
     MPStateMachine *stateMachine = [MPStateMachine sharedInstance];
     stateMachine.apiKey = apiKey;
     stateMachine.secret = secret;
@@ -1873,13 +1889,17 @@ static BOOL appBackgrounded = NO;
         
         [stateMachine.searchAttribution requestAttributionDetailsWithBlock:^{
             [strongSelf processDidFinishLaunching:strongSelf->didFinishLaunchingNotification];
-            [strongSelf uploadDatabaseWithCompletionHandler:nil];
+            dispatch_async(self->networkQueue, ^{
+                [strongSelf uploadDatabaseWithCompletionHandler:nil];
+            });
         }];
         
         [strongSelf processPendingArchivedMessages];
         
         [MPResponseConfig restore];
-        [self requestConfig:nil];
+        dispatch_async(self->networkQueue, ^{
+            [self requestConfig:nil];
+        });
         MPILogDebug(@"SDK %@ has started", kMParticleSDKVersion);
         
         completionHandler();
@@ -1926,32 +1946,36 @@ static BOOL appBackgrounded = NO;
     }
     
     if (shouldUpload) {
-        [self uploadDatabaseWithCompletionHandler:nil];
+        dispatch_async(self->messageQueue, ^{
+            dispatch_async(self->networkQueue, ^{
+                [self uploadDatabaseWithCompletionHandler:nil];
+            });
+        });
     }
 }
 
 - (MPExecStatus)uploadDatabaseWithCompletionHandler:(void (^ _Nullable)())completionHandler {
     __weak MPBackendController *weakSelf = self;
 
-    [self requestConfig:^(BOOL uploadBatch) {
-        __strong MPBackendController *strongSelf = weakSelf;
-
-        BOOL shouldDelayUpload = [[MPKitContainer sharedInstance] shouldDelayUpload:kMPMaximumKitWaitTimeSeconds];
-        if (!uploadBatch || shouldDelayUpload) {
-            if (completionHandler) {
-                completionHandler();
-            }
-        
-            return;
-        }
-
-        [strongSelf uploadBatchesWithCompletionHandler:^(BOOL success) {
-            if (completionHandler) {
-                completionHandler();
-            }
-        }];
-        
-    }];
+            [self requestConfig:^(BOOL uploadBatch) {
+                __strong MPBackendController *strongSelf = weakSelf;
+                
+                BOOL shouldDelayUpload = [[MPKitContainer sharedInstance] shouldDelayUpload:kMPMaximumKitWaitTimeSeconds];
+                if (!uploadBatch || shouldDelayUpload) {
+                    if (completionHandler) {
+                        completionHandler();
+                    }
+                    
+                    return;
+                }
+                
+                [strongSelf uploadBatchesWithCompletionHandler:^(BOOL success) {
+                    if (completionHandler) {
+                        completionHandler();
+                    }
+                }];
+                
+            }];
     
     return MPExecStatusSuccess;
 }
