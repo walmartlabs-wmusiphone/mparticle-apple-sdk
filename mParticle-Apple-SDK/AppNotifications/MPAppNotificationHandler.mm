@@ -92,16 +92,16 @@
         return;
     }
     
-#if !defined(MPARTICLE_APP_EXTENSIONS)
-    [MPNotificationController setDeviceToken:nil];
-#endif
+    if (![MPStateMachine isAppExtension]) {
+        [MPNotificationController setDeviceToken:nil];
+    }
     
     SEL failedRegistrationSelector = @selector(failedToRegisterForUserNotifications:);
     
     MPForwardQueueParameters *queueParameters = [[MPForwardQueueParameters alloc] init];
     [queueParameters addParameter:error];
     
-    dispatch_async([MParticle messageQueue], ^{
+    dispatch_async(dispatch_get_main_queue(), ^{
         [[MPKitContainer sharedInstance] forwardSDKCall:failedRegistrationSelector
                                              parameters:queueParameters
                                             messageType:MPMessageTypeUnknown
@@ -116,15 +116,16 @@
         return;
     }
     
-#if !defined(MPARTICLE_APP_EXTENSIONS)
-    [MPNotificationController setDeviceToken:deviceToken];
-#endif
+    if (![MPStateMachine isAppExtension]) {
+        [MPNotificationController setDeviceToken:deviceToken];
+    }
+
     SEL deviceTokenSelector = @selector(setDeviceToken:);
     
     MPForwardQueueParameters *queueParameters = [[MPForwardQueueParameters alloc] init];
     [queueParameters addParameter:deviceToken];
     
-    dispatch_async([MParticle messageQueue], ^{
+    dispatch_async(dispatch_get_main_queue(), ^{
         [[MPKitContainer sharedInstance] forwardSDKCall:deviceTokenSelector
                                              parameters:queueParameters
                                             messageType:MPMessageTypeUnknown
@@ -147,7 +148,7 @@
     MPForwardQueueParameters *queueParameters = [[MPForwardQueueParameters alloc] init];
     [queueParameters addParameter:notificationSettings];
     
-    dispatch_async([MParticle messageQueue], ^{
+    dispatch_async(dispatch_get_main_queue(), ^{
         [[MPKitContainer sharedInstance] forwardSDKCall:didRegisterUserNotificationSettingsSelector
                                              parameters:queueParameters
                                             messageType:MPMessageTypeUnknown
@@ -170,7 +171,7 @@
     [queueParameters addParameter:identifier];
     [queueParameters addParameter:userInfo];
     
-    dispatch_async([MParticle messageQueue], ^{
+    dispatch_async(dispatch_get_main_queue(), ^{
         [[MPKitContainer sharedInstance] forwardSDKCall:handleActionWithIdentifierSelector
                                              parameters:queueParameters
                                             messageType:MPMessageTypeUnknown
@@ -194,7 +195,7 @@
     [queueParameters addParameter:userInfo];
     [queueParameters addParameter:responseInfo];
     
-    dispatch_async([MParticle messageQueue], ^{
+    dispatch_async(dispatch_get_main_queue(), ^{
         [[MPKitContainer sharedInstance] forwardSDKCall:handleActionWithIdentifierSelector
                                              parameters:queueParameters
                                             messageType:MPMessageTypeUnknown
@@ -219,9 +220,11 @@
     
     NSString *notificationName = userNotificationMode == MPUserNotificationModeRemote ? kMPRemoteNotificationReceivedNotification : kMPLocalNotificationReceivedNotification;
     
-    [[NSNotificationCenter defaultCenter] postNotificationName:notificationName
-                                                        object:self
-                                                      userInfo:userNotificationDictionary];
+    dispatch_async(dispatch_get_main_queue(), ^{
+        [[NSNotificationCenter defaultCenter] postNotificationName:notificationName
+                                                            object:self
+                                                          userInfo:userNotificationDictionary];
+    });
     
     
     if (!actionIdentifier) {
@@ -230,7 +233,7 @@
         MPForwardQueueParameters *queueParameters = [[MPForwardQueueParameters alloc] init];
         [queueParameters addParameter:userInfo];
         
-        dispatch_async([MParticle messageQueue], ^{
+        dispatch_async(dispatch_get_main_queue(), ^{
             [[MPKitContainer sharedInstance] forwardSDKCall:receivedNotificationSelector
                                                  parameters:queueParameters
                                                 messageType:MPMessageTypePushNotification
@@ -252,7 +255,7 @@
     MPForwardQueueParameters *queueParameters = [[MPForwardQueueParameters alloc] init];
     [queueParameters addParameter:userActivity];
     
-    dispatch_async([MParticle messageQueue], ^{
+    dispatch_async(dispatch_get_main_queue(), ^{
         [[MPKitContainer sharedInstance] forwardSDKCall:didUpdateUserActivitySelector
                                              parameters:queueParameters
                                             messageType:MPMessageTypeUnknown
@@ -272,18 +275,20 @@
     NSDictionary *userNotificationDictionary = @{kMPUserNotificationDictionaryKey:notification.request.content.userInfo,
                                                  kMPUserNotificationRunningModeKey:@(self.runningMode)};
     
-    [[NSNotificationCenter defaultCenter] postNotificationName:kMPRemoteNotificationReceivedNotification
-                                                        object:self
-                                                      userInfo:userNotificationDictionary];
-    
-    SEL userNotificationCenterWillPresentNotification = @selector(userNotificationCenter:willPresentNotification:);
-    NSArray<id<MPExtensionKitProtocol>> *activeKitsRegistry = [[MPKitContainer sharedInstance] activeKitsRegistry];
-    
-    for (id<MPExtensionKitProtocol> kitRegister in activeKitsRegistry) {
-        if ([kitRegister.wrapperInstance respondsToSelector:userNotificationCenterWillPresentNotification]) {
-            [kitRegister.wrapperInstance userNotificationCenter:center willPresentNotification:notification];
+    dispatch_async(dispatch_get_main_queue(), ^{
+        [[NSNotificationCenter defaultCenter] postNotificationName:kMPRemoteNotificationReceivedNotification
+                                                            object:self
+                                                          userInfo:userNotificationDictionary];
+        
+        SEL userNotificationCenterWillPresentNotification = @selector(userNotificationCenter:willPresentNotification:);
+        NSArray<id<MPExtensionKitProtocol>> *activeKitsRegistry = [[MPKitContainer sharedInstance] activeKitsRegistry];
+        
+        for (id<MPExtensionKitProtocol> kitRegister in activeKitsRegistry) {
+            if ([kitRegister.wrapperInstance respondsToSelector:userNotificationCenterWillPresentNotification]) {
+                [kitRegister.wrapperInstance userNotificationCenter:center willPresentNotification:notification];
+            }
         }
-    }
+    });
 }
 
 - (void)userNotificationCenter:(nonnull UNUserNotificationCenter *)center didReceiveNotificationResponse:(nonnull UNNotificationResponse *)response {
@@ -298,32 +303,35 @@
         userNotificationDictionary[kMPUserNotificationActionKey] = response.actionIdentifier;
     }
     
-    [[NSNotificationCenter defaultCenter] postNotificationName:kMPRemoteNotificationReceivedNotification
-                                                        object:self
-                                                      userInfo:userNotificationDictionary];
-    
     SEL userNotificationCenterDidReceiveNotificationResponse = @selector(userNotificationCenter:didReceiveNotificationResponse:);
-    NSArray<id<MPExtensionKitProtocol>> *activeKitsRegistry = [[MPKitContainer sharedInstance] activeKitsRegistry];
-    NSNumber *lastKit = nil;
     
-    for (id<MPExtensionKitProtocol> kitRegister in activeKitsRegistry) {
-        if ([kitRegister.wrapperInstance respondsToSelector:userNotificationCenterDidReceiveNotificationResponse]) {
-            MPKitExecStatus *execStatus = [kitRegister.wrapperInstance userNotificationCenter:center didReceiveNotificationResponse:response];
-            
-            if (execStatus.success && ![lastKit isEqualToNumber:execStatus.kitCode]) {
-                lastKit = execStatus.kitCode;
+    dispatch_async(dispatch_get_main_queue(), ^{
+        [[NSNotificationCenter defaultCenter] postNotificationName:kMPRemoteNotificationReceivedNotification
+                                                            object:self
+                                                          userInfo:userNotificationDictionary];
+        
+        NSArray<id<MPExtensionKitProtocol>> *activeKitsRegistry = [[MPKitContainer sharedInstance] activeKitsRegistry];
+        NSNumber *lastKit = nil;
+        
+        for (id<MPExtensionKitProtocol> kitRegister in activeKitsRegistry) {
+            if ([kitRegister.wrapperInstance respondsToSelector:userNotificationCenterDidReceiveNotificationResponse]) {
+                MPKitExecStatus *execStatus = [kitRegister.wrapperInstance userNotificationCenter:center didReceiveNotificationResponse:response];
                 
-                MPForwardRecord *forwardRecord = [[MPForwardRecord alloc] initWithMessageType:MPMessageTypePushNotification
-                                                                                   execStatus:execStatus];
-                
-                dispatch_async([MParticle messageQueue], ^{
-                    [[MPPersistenceController sharedInstance] saveForwardRecord:forwardRecord];
-                });
-                
-                MPILogDebug(@"Forwarded user notifications call to kit: %@", kitRegister.name);
+                if (execStatus.success && ![lastKit isEqualToNumber:execStatus.kitCode]) {
+                    lastKit = execStatus.kitCode;
+                    
+                    MPForwardRecord *forwardRecord = [[MPForwardRecord alloc] initWithMessageType:MPMessageTypePushNotification
+                                                                                       execStatus:execStatus];
+                    
+                    dispatch_async([MParticle messageQueue], ^{
+                        [[MPPersistenceController sharedInstance] saveForwardRecord:forwardRecord];
+                    });
+                    
+                    MPILogDebug(@"Forwarded user notifications call to kit: %@", kitRegister.name);
+                }
             }
         }
-    }
+    });
 }
 #endif
 
@@ -341,7 +349,7 @@
     [queueParameters addParameter:userActivity];
     [queueParameters addParameter:restorationHandler];
     
-    dispatch_async([MParticle messageQueue], ^{
+    dispatch_async(dispatch_get_main_queue(), ^{
         [[MPKitContainer sharedInstance] forwardSDKCall:continueUserActivitySelector
                                              parameters:queueParameters
                                             messageType:MPMessageTypeUnknown
@@ -376,7 +384,7 @@
     [queueParameters addParameter:url];
     [queueParameters addParameter:options];
     
-    dispatch_async([MParticle messageQueue], ^{
+    dispatch_async(dispatch_get_main_queue(), ^{
         [[MPKitContainer sharedInstance] forwardSDKCall:openURLOptionsSelector
                                              parameters:queueParameters
                                             messageType:MPMessageTypeUnknown
@@ -403,7 +411,7 @@
     [queueParameters addParameter:sourceApplication];
     [queueParameters addParameter:annotation];
     
-    dispatch_async([MParticle messageQueue], ^{
+    dispatch_async(dispatch_get_main_queue(), ^{
         [[MPKitContainer sharedInstance] forwardSDKCall:openURLSourceAppAnnotationSelector
                                              parameters:queueParameters
                                             messageType:MPMessageTypeUnknown
