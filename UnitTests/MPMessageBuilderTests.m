@@ -17,8 +17,16 @@
 #import "MPUserAttributeChange.h"
 #import "MPPersistenceController.h"
 #import "MParticle.h"
+#import "MPBaseTestCase.h"
+#import "MPStateMachine.h"
 
-@interface MPMessageBuilderTests : XCTestCase
+@interface MParticle ()
+
+@property (nonatomic, strong) MPStateMachine *stateMachine;
+
+@end
+
+@interface MPMessageBuilderTests : MPBaseTestCase
 
 @property (nonatomic, strong) MPSession *session;
 
@@ -37,6 +45,8 @@
 
 - (void)setUp {
     [super setUp];
+    
+    [MParticle sharedInstance].stateMachine = [[MPStateMachine alloc] init];
 }
 
 - (void)tearDown {
@@ -332,6 +342,22 @@
     XCTAssertEqualObjects(@"VIP", messageDictionary[@"n"]);
     XCTAssertEqualObjects(@NO, messageDictionary[@"d"]);
     XCTAssertEqualObjects(@YES, messageDictionary[@"na"]);
+}
+
+- (void)testMessageTypeNameConversions {
+    
+    for (int i = 0; i < MPMessageTypeUserIdentityChange; i++) {
+        
+        MPMessageType expectedType = (MPMessageType)i;
+        
+        if (expectedType == MPMessageTypePreAttribution) {
+            expectedType = MPMessageTypeUnknown;
+        }
+        
+        XCTAssertEqual(expectedType, [MPMessageBuilder messageTypeForString:[MPMessageBuilder stringForMessageType:(MPMessageType)i]]);
+        
+    }
+    
 }
 
 @end

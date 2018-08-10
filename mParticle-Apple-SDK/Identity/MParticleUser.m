@@ -22,8 +22,10 @@
 @interface MParticle ()
 
 + (dispatch_queue_t)messageQueue;
-+ (dispatch_queue_t)networkQueue;
 @property (nonatomic, strong) MPBackendController *backendController;
+@property (nonatomic, strong, readonly) MPPersistenceController *persistenceController;
+@property (nonatomic, strong, readonly) MPStateMachine *stateMachine;
+@property (nonatomic, strong, readonly) MPKitContainer *kitContainer;
 
 @end
 
@@ -129,7 +131,7 @@
                                   
                                   // Forwarding calls to kits
                                   dispatch_async(dispatch_get_main_queue(), ^{
-                                      [[MPKitContainer sharedInstance] forwardSDKCall:@selector(setUserIdentity:identityType:)
+                                      [[MParticle sharedInstance].kitContainer forwardSDKCall:@selector(setUserIdentity:identityType:)
                                                                          userIdentity:identityString
                                                                          identityType:identityType
                                                                            kitHandler:^(id<MPKitProtocol> kit, MPKitConfiguration *kitConfig) {
@@ -143,7 +145,7 @@
 - (nullable NSNumber *)incrementUserAttribute:(NSString *)key byValue:(NSNumber *)value {
     dispatch_async([MParticle messageQueue], ^{
         
-        MPStateMachine *stateMachine = [MPStateMachine sharedInstance];
+        MPStateMachine *stateMachine = [MParticle sharedInstance].stateMachine;
         if (stateMachine.optOut) {
             return;
         }
@@ -152,7 +154,7 @@
         
         MPILogDebug(@"User attribute %@ incremented by %@. New value: %@", key, value, newValue);
         dispatch_async(dispatch_get_main_queue(), ^{
-            [[MPKitContainer sharedInstance] forwardSDKCall:@selector(incrementUserAttribute:byValue:)
+            [[MParticle sharedInstance].kitContainer forwardSDKCall:@selector(incrementUserAttribute:byValue:)
                                            userAttributeKey:key
                                                       value:value
                                                  kitHandler:^(id<MPKitProtocol> kit, MPKitConfiguration *kitConfig) {
@@ -166,7 +168,7 @@
                                                      }
                                                  }];
             
-            [[MPKitContainer sharedInstance] forwardSDKCall:@selector(setUserAttribute:value:)
+            [[MParticle sharedInstance].kitContainer forwardSDKCall:@selector(setUserAttribute:value:)
                                            userAttributeKey:key
                                                       value:newValue
                                                  kitHandler:^(id<MPKitProtocol> kit, MPKitConfiguration *kitConfig) {
@@ -212,7 +214,7 @@
                                        }
                                        dispatch_async(dispatch_get_main_queue(), ^{
                                            // Forwarding calls to kits
-                                           [[MPKitContainer sharedInstance] forwardSDKCall:@selector(setUserAttribute:value:)
+                                           [[MParticle sharedInstance].kitContainer forwardSDKCall:@selector(setUserAttribute:value:)
                                                                           userAttributeKey:key
                                                                                      value:value
                                                                                 kitHandler:^(id<MPKitProtocol> kit, MPKitConfiguration *kitConfig) {
@@ -258,7 +260,7 @@
                                            SEL setUserAttributeSelector = @selector(setUserAttribute:value:);
                                            SEL setUserAttributeListSelector = @selector(setUserAttribute:values:);
                                            
-                                           [[MPKitContainer sharedInstance] forwardSDKCall:setUserAttributeListSelector
+                                           [[MParticle sharedInstance].kitContainer forwardSDKCall:setUserAttributeListSelector
                                                                           userAttributeKey:key
                                                                                      value:values
                                                                                 kitHandler:^(id<MPKitProtocol> kit, MPKitConfiguration *kitConfig) {
@@ -293,7 +295,7 @@
                                        
                                        // Forwarding calls to kits
                                        dispatch_async(dispatch_get_main_queue(), ^{
-                                           [[MPKitContainer sharedInstance] forwardSDKCall:@selector(setUserTag:)
+                                           [[MParticle sharedInstance].kitContainer forwardSDKCall:@selector(setUserTag:)
                                                                           userAttributeKey:tag
                                                                                      value:nil
                                                                                 kitHandler:^(id<MPKitProtocol> kit, MPKitConfiguration *kitConfig) {
@@ -325,7 +327,7 @@
                                        
                                        // Forwarding calls to kits
                                        dispatch_async(dispatch_get_main_queue(), ^{
-                                           [[MPKitContainer sharedInstance] forwardSDKCall:_cmd
+                                           [[MParticle sharedInstance].kitContainer forwardSDKCall:_cmd
                                                                           userAttributeKey:key
                                                                                      value:nil
                                                                                 kitHandler:^(id<MPKitProtocol> kit, MPKitConfiguration *kitConfig) {
@@ -345,29 +347,27 @@
 #pragma mark - User Segments
 - (void)userSegments:(NSTimeInterval)timeout endpointId:(NSString *)endpointId completionHandler:(MPUserSegmentsHandler)completionHandler {
     dispatch_async([MParticle messageQueue], ^{
-        dispatch_async([MParticle networkQueue], ^{
-            MPExecStatus execStatus = [self.backendController fetchSegments:timeout
-                                                                 endpointId:endpointId
-                                                          completionHandler:^(NSArray *segments, NSTimeInterval elapsedTime, NSError *error) {
-                                                              if (!segments) {
-                                                                  dispatch_async(dispatch_get_main_queue(), ^{
-                                                                      completionHandler(nil, error);
-                                                                  });
-                                                                  return;
-                                                              }
-                                                              
-                                                              MPUserSegments *userSegments = [[MPUserSegments alloc] initWithSegments:segments];
+        MPExecStatus execStatus = [self.backendController fetchSegments:timeout
+                                                             endpointId:endpointId
+                                                      completionHandler:^(NSArray *segments, NSTimeInterval elapsedTime, NSError *error) {
+                                                          if (!segments) {
                                                               dispatch_async(dispatch_get_main_queue(), ^{
-                                                                  completionHandler(userSegments, error);
+                                                                  completionHandler(nil, error);
                                                               });
-                                                          }];
-            
-            if (execStatus == MPExecStatusSuccess) {
-                MPILogDebug(@"Fetching user segments");
-            } else {
-                MPILogError(@"Could not fetch user segments: %@", [self.backendController execStatusDescription:execStatus]);
-            }
-        });
+                                                              return;
+                                                          }
+                                                          
+                                                          MPUserSegments *userSegments = [[MPUserSegments alloc] initWithSegments:segments];
+                                                          dispatch_async(dispatch_get_main_queue(), ^{
+                                                              completionHandler(userSegments, error);
+                                                          });
+                                                      }];
+        
+        if (execStatus == MPExecStatusSuccess) {
+            MPILogDebug(@"Fetching user segments");
+        } else {
+            MPILogError(@"Could not fetch user segments: %@", [self.backendController execStatusDescription:execStatus]);
+        }
     });
 }
 
@@ -377,15 +377,15 @@
     
     [MPPersistenceController setConsentState:state forMpid:self.userId];
     
-    NSArray<NSDictionary *> *kitConfig = [[MPKitContainer sharedInstance].originalConfig copy];
+    NSArray<NSDictionary *> *kitConfig = [[MParticle sharedInstance].kitContainer.originalConfig copy];
     if (kitConfig) {
         dispatch_async(dispatch_get_main_queue(), ^{
-            [[MPKitContainer sharedInstance] configureKits:kitConfig];
+            [[MParticle sharedInstance].kitContainer configureKits:kitConfig];
         });
     }
     
     dispatch_async(dispatch_get_main_queue(), ^{
-        [[MPKitContainer sharedInstance] forwardSDKCall:@selector(setConsentState:) consentState:state kitHandler:^(id<MPKitProtocol>  _Nonnull kit, MPConsentState * _Nullable filteredConsentState, MPKitConfiguration * _Nonnull kitConfiguration) {
+        [[MParticle sharedInstance].kitContainer forwardSDKCall:@selector(setConsentState:) consentState:state kitHandler:^(id<MPKitProtocol>  _Nonnull kit, MPConsentState * _Nullable filteredConsentState, MPKitConfiguration * _Nonnull kitConfiguration) {
             MPKitExecStatus *status = [kit setConsentState:filteredConsentState];
             if (!status.success) {
                 MPILogError(@"Failed to set consent state for kit=%@", status.kitCode);

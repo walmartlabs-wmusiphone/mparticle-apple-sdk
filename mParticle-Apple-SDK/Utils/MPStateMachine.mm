@@ -29,6 +29,10 @@ static BOOL runningInBackground = NO;
 
 @interface MParticle ()
 + (dispatch_queue_t)messageQueue;
+@property (nonatomic, strong, readonly) MPPersistenceController *persistenceController;
+@property (nonatomic, strong, readonly) MPStateMachine *stateMachine;
+@property (nonatomic, strong, readonly) MPKitContainer *kitContainer;
+
 @end
 
 @interface MPStateMachine() {
@@ -61,6 +65,7 @@ static BOOL runningInBackground = NO;
 @synthesize triggerEventTypes = _triggerEventTypes;
 @synthesize triggerMessageTypes = _triggerMessageTypes;
 @synthesize automaticSessionTracking = _automaticSessionTracking;
+@synthesize networkStatus = _networkStatus;
 
 #if TARGET_OS_IOS == 1
 @synthesize location = _location;
@@ -93,7 +98,7 @@ static BOOL runningInBackground = NO;
             strongSelf.storedSDKVersion = kMParticleSDKVersion;
             
             [strongSelf.reachability startNotifier];
-            strongSelf.networkStatus = [strongSelf->_reachability currentReachabilityStatus];
+            strongSelf.networkStatus = [strongSelf.reachability currentReachabilityStatus];
             
             [notificationCenter addObserver:strongSelf
                                    selector:@selector(handleApplicationDidEnterBackground:)
@@ -150,25 +155,16 @@ static BOOL runningInBackground = NO;
     return _reachability;
 }
 
-- (void)setNetworkStatus:(MParticleNetworkStatus)networkStatus {
-    _networkStatus = networkStatus;
-
-    NSString *networkStatusDescription;
-    switch (networkStatus) {
-        case MParticleNetworkStatusReachableViaWiFi:
-            networkStatusDescription = @"Reachable via Wi-Fi";
-            break;
-            
-        case MParticleNetworkStatusReachableViaWAN:
-            networkStatusDescription = @"Reachable via WAN";
-            break;
-            
-        case MParticleNetworkStatusNotReachable:
-            networkStatusDescription = @"Not reachable";
-            break;
+- (MParticleNetworkStatus)networkStatus {
+    @synchronized(self) {
+        return _networkStatus;
     }
-    
-    MPILogVerbose(@"Network Status: %@", networkStatusDescription);
+}
+
+- (void)setNetworkStatus:(MParticleNetworkStatus)networkStatus {
+    @synchronized(self) {
+        _networkStatus = networkStatus;
+    }
 }
 
 - (NSString *)storedSDKVersion {
@@ -292,29 +288,22 @@ static BOOL runningInBackground = NO;
 }
 
 #pragma mark Class methods
-+ (instancetype)sharedInstance {
-    static MPStateMachine *sharedInstance = nil;
-    static dispatch_once_t stateMachinePredicate;
-    
-    dispatch_once(&stateMachinePredicate, ^{
-        sharedInstance = [[MPStateMachine alloc] init];
-    });
-    
-    return sharedInstance;
-}
-
 + (MPEnvironment)environment {
-    if (runningEnvironment != MPEnvironmentAutoDetect) {
+    @synchronized(self) {
+        if (runningEnvironment != MPEnvironmentAutoDetect) {
+            return runningEnvironment;
+        }
+        
+        runningEnvironment = [MPStateMachine getEnvironment];
+        
         return runningEnvironment;
     }
-    
-    runningEnvironment = [MPStateMachine getEnvironment];
-    
-    return runningEnvironment;
 }
 
 + (void)setEnvironment:(MPEnvironment)environment {
-    runningEnvironment = environment;
+    @synchronized(self) {
+        runningEnvironment = environment;
+    }
 }
 
 + (NSString *)provisioningProfileString {
@@ -339,11 +328,15 @@ static BOOL runningInBackground = NO;
 }
 
 + (BOOL)runningInBackground {
-    return runningInBackground;
+    @synchronized(self) {
+        return runningInBackground;
+    }
 }
 
 + (void)setRunningInBackground:(BOOL)background {
-    runningInBackground = background;
+    @synchronized(self) {
+        runningInBackground = background;
+    }
 }
 
 + (BOOL)isAppExtension {
@@ -383,7 +376,7 @@ static BOOL runningInBackground = NO;
         return _consumerInfo;
     }
     
-    MPPersistenceController *persistence = [MPPersistenceController sharedInstance];
+    MPPersistenceController *persistence = [MParticle sharedInstance].persistenceController;
     _consumerInfo = [persistence fetchConsumerInfoForUserId:[MPPersistenceController mpId]];
     
     if (!_consumerInfo) {
@@ -606,9 +599,9 @@ static BOOL runningInBackground = NO;
 }
 
 - (BOOL)optOut {
-    [self willChangeValueForKey:@"optOut"];
-    
-    optOutSet = YES;
+    if (optOutSet) {
+        return _optOut;
+    }
     
     MPIUserDefaults *userDefaults = [MPIUserDefaults standardUserDefaults];
     NSNumber *optOutNumber = userDefaults[kMPOptOutStatus];
@@ -621,9 +614,8 @@ static BOOL runningInBackground = NO;
             [userDefaults synchronize];
         });
     }
-    
-    [self didChangeValueForKey:@"optOut"];
-    
+    optOutSet = YES;
+        
     return _optOut;
 }
 
@@ -807,7 +799,7 @@ static BOOL runningInBackground = NO;
         }
     }
     
-    NSString *messageTypeCommerceEventKey = [NSString stringWithCString:mParticle::MessageTypeName::nameForMessageType(mParticle::CommerceEvent).c_str() encoding:NSUTF8StringEncoding];
+    NSString *messageTypeCommerceEventKey = kMPMessageTypeStringCommerceEvent;
     NSMutableArray *messageTypes = [@[messageTypeCommerceEventKey] mutableCopy];
     NSArray *configMessageTypes = triggerDictionary[kMPRemoteConfigTriggerMessageTypesKey];
     

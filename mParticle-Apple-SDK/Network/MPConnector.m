@@ -1,7 +1,6 @@
 #import "MPConnector.h"
 #import <dispatch/dispatch.h>
 #import "MPIConstants.h"
-#import "MPStateMachine.h"
 #import "MPURLRequestBuilder.h"
 #import "MPNetworkCommunication.h"
 #import "MPILogger.h"
@@ -75,7 +74,8 @@ static NSArray *mpStoredCertificates = nil;
     }
     
     NSURLSessionConfiguration *sessionConfiguration = [NSURLSessionConfiguration ephemeralSessionConfiguration];
-    
+    sessionConfiguration.timeoutIntervalForRequest = 30;
+    sessionConfiguration.timeoutIntervalForResource = 30;
     _urlSession = [NSURLSession sessionWithConfiguration:sessionConfiguration
                                                 delegate:self
                                            delegateQueue:[NSOperationQueue mainQueue]];

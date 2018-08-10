@@ -35,7 +35,6 @@
 #import "mParticle.h"
 #import "MPConsentKitFilter.h"
 #import "MPIConstants.h"
-#import "MPILogger.h"
 
 #define DEFAULT_ALLOCATION_FOR_KITS 2
 
@@ -43,9 +42,14 @@ NSString *const kitFileExtension = @"eks";
 static NSMutableSet <id<MPExtensionKitProtocol>> *kitsRegistry;
 
 @interface MParticle ()
+
+@property (nonatomic, strong, readonly) MPPersistenceController *persistenceController;
+@property (nonatomic, strong, readonly) MPStateMachine *stateMachine;
+@property (nonatomic, strong, readonly) MPKitContainer *kitContainer;
 + (dispatch_queue_t)messageQueue;
 @property (nonatomic, strong, nonnull) MParticleOptions *options;
 - (void)executeKitsInitializedBlocks;
+
 @end
 
 @interface MPKitAPI ()
@@ -133,7 +137,7 @@ static NSMutableSet <id<MPExtensionKitProtocol>> *kitsRegistry;
 
 - (void)handleApplicationDidFinishLaunching:(NSNotification *)notification {
     dispatch_async(dispatch_get_main_queue(), ^{
-        MPStateMachine *stateMachine = [MPStateMachine sharedInstance];
+        MPStateMachine *stateMachine = [MParticle sharedInstance].stateMachine;
         stateMachine.launchOptions = [notification userInfo];
         SEL launchOptionsSelector = @selector(setLaunchOptions:);
         SEL startSelector = @selector(start);
@@ -245,7 +249,7 @@ static NSMutableSet <id<MPExtensionKitProtocol>> *kitsRegistry;
         
         self.kitsInitialized = YES;
     }
-    if ([MPStateMachine sharedInstance].logLevel >= MPILogLevelDebug) {
+    if ([MParticle sharedInstance].stateMachine.logLevel >= MPILogLevelDebug) {
         NSArray<NSNumber *> *supportedKits = [self supportedKits];
         
         if (supportedKits.count > 0) {
@@ -263,22 +267,22 @@ static NSMutableSet <id<MPExtensionKitProtocol>> *kitsRegistry;
 }
 
 - (NSDictionary *)methodMessageTypeMapping {
-    NSString *messageTypeEvent = [NSString stringWithCString:mParticle::MessageTypeName::nameForMessageType(mParticle::Event).c_str() encoding:NSUTF8StringEncoding];
+    NSString *messageTypeEvent = kMPMessageTypeStringEvent;
     
     NSDictionary *methodMessageTypeDictionary = @{@"logEvent:":messageTypeEvent,
-                                                  @"logScreen:":[NSString stringWithCString:mParticle::MessageTypeName::nameForMessageType(mParticle::ScreenView).c_str() encoding:NSUTF8StringEncoding],
-                                                  @"logScreenEvent:":[NSString stringWithCString:mParticle::MessageTypeName::nameForMessageType(mParticle::ScreenView).c_str() encoding:NSUTF8StringEncoding],
-                                                  @"beginSession":[NSString stringWithCString:mParticle::MessageTypeName::nameForMessageType(mParticle::SessionStart).c_str() encoding:NSUTF8StringEncoding],
-                                                  @"endSession":[NSString stringWithCString:mParticle::MessageTypeName::nameForMessageType(mParticle::SessionEnd).c_str() encoding:NSUTF8StringEncoding],
+                                                  @"logScreen:":kMPMessageTypeStringScreenView,
+                                                  @"logScreenEvent:":kMPMessageTypeStringScreenView,
+                                                  @"beginSession":kMPMessageTypeStringSessionStart,
+                                                  @"endSession":kMPMessageTypeStringSessionEnd,
                                                   @"logTransaction:":messageTypeEvent,
                                                   @"logLTVIncrease:eventName:eventInfo:":messageTypeEvent,
-                                                  @"leaveBreadcrumb:":[NSString stringWithCString:mParticle::MessageTypeName::nameForMessageType(mParticle::Breadcrumb).c_str() encoding:NSUTF8StringEncoding],
-                                                  @"logError:exception:topmostContext:eventInfo:":[NSString stringWithCString:mParticle::MessageTypeName::nameForMessageType(mParticle::CrashReport).c_str() encoding:NSUTF8StringEncoding],
-                                                  @"logNetworkPerformanceMeasurement:":[NSString stringWithCString:mParticle::MessageTypeName::nameForMessageType(mParticle::NetworkPerformance).c_str() encoding:NSUTF8StringEncoding],
-                                                  @"profileChange:":[NSString stringWithCString:mParticle::MessageTypeName::nameForMessageType(mParticle::Profile).c_str() encoding:NSUTF8StringEncoding],
-                                                  @"setOptOut:":[NSString stringWithCString:mParticle::MessageTypeName::nameForMessageType(mParticle::OptOut).c_str() encoding:NSUTF8StringEncoding],
-                                                  @"logCommerceEvent:":[NSString stringWithCString:mParticle::MessageTypeName::nameForMessageType(mParticle::CommerceEvent).c_str() encoding:NSUTF8StringEncoding],
-                                                  @"leaveBreadcrumb:":[NSString stringWithCString:mParticle::MessageTypeName::nameForMessageType(mParticle::Breadcrumb).c_str() encoding:NSUTF8StringEncoding]
+                                                  @"leaveBreadcrumb:":kMPMessageTypeStringBreadcrumb,
+                                                  @"logError:exception:topmostContext:eventInfo:":kMPMessageTypeStringCrashReport,
+                                                  @"logNetworkPerformanceMeasurement:":kMPMessageTypeStringNetworkPerformance,
+                                                  @"profileChange:":kMPMessageTypeStringProfile,
+                                                  @"setOptOut:":kMPMessageTypeStringOptOut,
+                                                  @"logCommerceEvent:":kMPMessageTypeStringCommerceEvent,
+                                                  @"leaveBreadcrumb:":kMPMessageTypeStringBreadcrumb
                                                   };
     
     return methodMessageTypeDictionary;
@@ -590,17 +594,6 @@ static NSMutableSet <id<MPExtensionKitProtocol>> *kitsRegistry;
 
 + (nullable NSSet<id<MPExtensionKitProtocol>> *)registeredKits {
     return kitsRegistry.count > 0 ? kitsRegistry : nil;
-}
-
-+ (MPKitContainer *)sharedInstance {
-    static MPKitContainer *sharedInstance = nil;
-    static dispatch_once_t kitContainerPredicate;
-    
-    dispatch_once(&kitContainerPredicate, ^{
-        sharedInstance = [[MPKitContainer alloc] init];
-    });
-    
-    return sharedInstance;
 }
 
 #pragma mark Public accessors
@@ -1896,7 +1889,7 @@ static NSMutableSet <id<MPExtensionKitProtocol>> *kitsRegistry;
 }
 
 - (void)configureKits:(NSArray<NSDictionary *> *)kitConfigurations {
-    MPStateMachine *stateMachine = [MPStateMachine sharedInstance];
+    MPStateMachine *stateMachine = [MParticle sharedInstance].stateMachine;
     
     if (MPIsNull(kitConfigurations) || stateMachine.optOut) {
         [self flushSerializedKits];
@@ -2107,7 +2100,7 @@ static NSMutableSet <id<MPExtensionKitProtocol>> *kitsRegistry;
                                                                                             kitFilter:kitFilter
                                                                                         originalEvent:commerceEvent];
                         dispatch_async([MParticle messageQueue], ^{
-                            [[MPPersistenceController sharedInstance] saveForwardRecord:forwardRecord];
+                            [[MParticle sharedInstance].persistenceController saveForwardRecord:forwardRecord];
                         });
                         MPILogDebug(@"Forwarded logCommerceEvent call to kit: %@", kitRegister.name);
                     }
@@ -2170,7 +2163,7 @@ static NSMutableSet <id<MPExtensionKitProtocol>> *kitsRegistry;
                                                                        originalEvent:event];
                     }
                     dispatch_async([MParticle messageQueue], ^{
-                        [[MPPersistenceController sharedInstance] saveForwardRecord:forwardRecord];
+                        [[MParticle sharedInstance].persistenceController saveForwardRecord:forwardRecord];
                     });
                 }
             }
@@ -2372,7 +2365,7 @@ static NSMutableSet <id<MPExtensionKitProtocol>> *kitsRegistry;
                         
                         if (forwardRecord) {
                             dispatch_async([MParticle messageQueue], ^{
-                                [[MPPersistenceController sharedInstance] saveForwardRecord:forwardRecord];
+                                [[MParticle sharedInstance].persistenceController saveForwardRecord:forwardRecord];
                             });
                         }
                     }
@@ -2421,7 +2414,7 @@ static NSMutableSet <id<MPExtensionKitProtocol>> *kitsRegistry;
 }
 
 - (nullable NSDictionary<NSString *, NSString *> *)integrationAttributesForKit:(nonnull NSNumber *)kitCode {
-    NSArray<MPIntegrationAttributes *> *array = [[MPPersistenceController sharedInstance] fetchIntegrationAttributes];
+    NSArray<MPIntegrationAttributes *> *array = [[MParticle sharedInstance].persistenceController fetchIntegrationAttributes];
     __block NSDictionary<NSString *, NSString *> *dictionary = nil;
     [array enumerateObjectsUsingBlock:^(MPIntegrationAttributes * _Nonnull obj, NSUInteger idx, BOOL * _Nonnull stop) {
         if (obj.kitCode.intValue == kitCode.intValue) {
