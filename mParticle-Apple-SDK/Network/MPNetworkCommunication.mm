@@ -23,6 +23,7 @@
 #import "MPEnums.h"
 #import "MPIdentityDTO.h"
 #import "MPIConstants.h"
+#import "NSString+MPPercentEscape.h"
 
 NSString *const urlFormat = @"%@://%@%@/%@%@"; // Scheme, URL Host, API Version, API key, path
 NSString *const identityURLFormat = @"%@://%@%@/%@"; // Scheme, URL Host, API Version, path
@@ -40,6 +41,13 @@ NSString *const kMPURLScheme = @"https";
 NSString *const kMPURLHost = @"nativesdks.mparticle.com";
 NSString *const kMPURLHostConfig = @"config2.mparticle.com";
 NSString *const kMPURLHostIdentity = @"identity.mparticle.com";
+
+@interface MParticle ()
+
+@property (nonatomic, strong, readonly) MPPersistenceController *persistenceController;
+@property (nonatomic, strong, readonly) MPStateMachine *stateMachine;
+
+@end
 
 @interface MPIdentityApiRequest ()
 
@@ -96,11 +104,11 @@ NSString *const kMPURLHostIdentity = @"identity.mparticle.com";
         return _configURL;
     }
     
-    MPStateMachine *stateMachine = [MPStateMachine sharedInstance];
+    MPStateMachine *stateMachine = [MParticle sharedInstance].stateMachine;
     MPApplication *application = [[MPApplication alloc] init];
     NSString *configURLFormat = [urlFormat stringByAppendingString:@"?av=%@&sv=%@"];
     NSString *configHost = [MParticle sharedInstance].networkOptions.configHost ?: kMPURLHostConfig;
-    NSString *urlString = [NSString stringWithFormat:configURLFormat, kMPURLScheme, configHost, kMPConfigVersion, stateMachine.apiKey, kMPConfigURL, application.version, kMParticleSDKVersion];
+    NSString *urlString = [NSString stringWithFormat:configURLFormat, kMPURLScheme, configHost, kMPConfigVersion, stateMachine.apiKey, kMPConfigURL, [application.version percentEscape], kMParticleSDKVersion];
     _configURL = [NSURL URLWithString:urlString];
     
     return _configURL;
@@ -111,7 +119,7 @@ NSString *const kMPURLHostIdentity = @"identity.mparticle.com";
         return _eventURL;
     }
     
-    MPStateMachine *stateMachine = [MPStateMachine sharedInstance];
+    MPStateMachine *stateMachine = [MParticle sharedInstance].stateMachine;
     NSString *eventHost = [MParticle sharedInstance].networkOptions.eventsHost ?: kMPURLHost;
     NSString *urlString = [NSString stringWithFormat:urlFormat, kMPURLScheme, eventHost, kMPEventsVersion, stateMachine.apiKey, kMPEventsURL];
     _eventURL = [NSURL URLWithString:urlString];
@@ -120,7 +128,7 @@ NSString *const kMPURLHostIdentity = @"identity.mparticle.com";
 }
 
 - (NSURL *)segmentURL {
-    MPStateMachine *stateMachine = [MPStateMachine sharedInstance];
+    MPStateMachine *stateMachine = [MParticle sharedInstance].stateMachine;
     
     NSString *segmentURLFormat = [urlFormat stringByAppendingString:@"?mpID=%@"];
     NSString *eventHost = [MParticle sharedInstance].networkOptions.eventsHost ?: kMPURLHost;
@@ -203,7 +211,7 @@ NSString *const kMPURLHostIdentity = @"identity.mparticle.com";
                 return;
             }
             
-            [[MPPersistenceController sharedInstance] deleteUpload:batchObject];
+            [[MParticle sharedInstance].persistenceController deleteUpload:batchObject];
             
             break;
             
@@ -237,15 +245,15 @@ NSString *const kMPURLHostIdentity = @"identity.mparticle.com";
                 }
             }
             
-            if ([[MPStateMachine sharedInstance].minUploadDate compare:now] == NSOrderedAscending) {
-                [MPStateMachine sharedInstance].minUploadDate = [now dateByAddingTimeInterval:retryAfter];
+            if ([[MParticle sharedInstance].stateMachine.minUploadDate compare:now] == NSOrderedAscending) {
+                [MParticle sharedInstance].stateMachine.minUploadDate = [now dateByAddingTimeInterval:retryAfter];
                 MPILogDebug(@"Throttling network for %.0f seconds", retryAfter);
             }
         }
             break;
             
         default:
-            [MPStateMachine sharedInstance].minUploadDate = [NSDate distantPast];
+            [MParticle sharedInstance].stateMachine.minUploadDate = [NSDate distantPast];
             break;
     }
 }
@@ -579,6 +587,14 @@ NSString *const kMPURLHostIdentity = @"identity.mparticle.com";
         }
         return;
     }
+    
+    if ([MParticle sharedInstance].stateMachine.optOut) {
+        if (completion) {
+            completion(nil, [NSError errorWithDomain:mParticleIdentityErrorDomain code:MPIdentityErrorResponseCodeOptOut userInfo:@{mParticleIdentityErrorKey:@"Opt Out Enabled."}]);
+        }
+        return;
+    }
+    
     if (blockOtherRequests) {
         self.identifying = YES;
     }

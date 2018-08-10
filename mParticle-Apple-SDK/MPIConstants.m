@@ -1,7 +1,7 @@
 #import "MPIConstants.h"
 
 // mParticle SDK Version
-NSString *const kMParticleSDKVersion = @"7.4.2";
+NSString *const kMParticleSDKVersion = @"7.5.1";
 
 // Message Type (dt)
 NSString *const kMPMessageTypeKey = @"dt";
@@ -266,6 +266,52 @@ NSString *const kMParticleWebViewPathIdentify = @"identify";
 NSString *const kMParticleWebViewPathLogout = @"logout";
 NSString *const kMParticleWebViewPathLogin = @"login";
 NSString *const kMParticleWebViewPathModify = @"modify";
+
+// Message type strings
+NSString *const kMPMessageTypeStringUnknown = @"unknown";
+NSString *const kMPMessageTypeStringSessionStart = @"ss";
+NSString *const kMPMessageTypeStringSessionEnd = @"se";
+NSString *const kMPMessageTypeStringScreenView = @"v";
+NSString *const kMPMessageTypeStringEvent = @"e";
+NSString *const kMPMessageTypeStringCrashReport = @"x";
+NSString *const kMPMessageTypeStringOptOut = @"o";
+NSString *const kMPMessageTypeStringFirstRun = @"fr";
+NSString *const kMPMessageTypeStringPreAttribution = @"unknown";
+NSString *const kMPMessageTypeStringPushRegistration = @"pr";
+NSString *const kMPMessageTypeStringAppStateTransition = @"ast";
+NSString *const kMPMessageTypeStringPushNotification = @"pm";
+NSString *const kMPMessageTypeStringNetworkPerformance = @"npe";
+NSString *const kMPMessageTypeStringBreadcrumb = @"bc";
+NSString *const kMPMessageTypeStringProfile = @"pro";
+NSString *const kMPMessageTypeStringPushNotificationInteraction = @"pre";
+NSString *const kMPMessageTypeStringCommerceEvent = @"cm";
+NSString *const kMPMessageTypeStringUserAttributeChange = @"uac";
+NSString *const kMPMessageTypeStringUserIdentityChange = @"uic";
+
+// Event type strings
+NSString *const kMPEventTypeStringUnknown = @"Unknown";
+NSString *const kMPEventTypeStringNavigation = @"Navigation";
+NSString *const kMPEventTypeStringLocation = @"Location";
+NSString *const kMPEventTypeStringSearch = @"Search";
+NSString *const kMPEventTypeStringTransaction = @"Transaction";
+NSString *const kMPEventTypeStringUserContent = @"UserContent";
+NSString *const kMPEventTypeStringUserPreference = @"UserPreference";
+NSString *const kMPEventTypeStringSocial = @"Social";
+NSString *const kMPEventTypeStringOther = @"Other";
+NSString *const kMPEventTypeStringMediaDiscontinued = @"Media(discontinued)";
+NSString *const kMPEventTypeStringProductAddToCart = @"ProductAddToCart";
+NSString *const kMPEventTypeStringProductRemoveFromCart = @"ProductRemoveFromCart";
+NSString *const kMPEventTypeStringProductCheckout = @"ProductCheckout";
+NSString *const kMPEventTypeStringProductCheckoutOption = @"ProductCheckoutOption";
+NSString *const kMPEventTypeStringProductClick = @"ProductClick";
+NSString *const kMPEventTypeStringProductViewDetail = @"ProductViewDetail";
+NSString *const kMPEventTypeStringProductPurchase = @"ProductPurchase";
+NSString *const kMPEventTypeStringProductRefund = @"ProductRefund";
+NSString *const kMPEventTypeStringPromotionView = @"PromotionView";
+NSString *const kMPEventTypeStringPromotionClick = @"PromotionClick";
+NSString *const kMPEventTypeStringProductAddToWishlist = @"ProductAddToWishlist";
+NSString *const kMPEventTypeStringProductRemoveFromWishlist = @"ProductRemoveFromWishlist";
+NSString *const kMPEventTypeStringProductImpression = @"ProductImpression";
 
 //
 // Primitive data type constants

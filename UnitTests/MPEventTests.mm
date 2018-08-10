@@ -9,15 +9,17 @@
 #import "MPPersistenceController.h"
 #import "MParticle.h"
 #import "MPBackendController.h"
+#import "MPBaseTestCase.h"
 
 #pragma mark - MParticle+Tests category
-@interface MParticle(Tests)
+@interface MParticle (Tests)
 
 @property (nonatomic, strong, nonnull) MPBackendController *backendController;
+@property (nonatomic, strong) MPStateMachine *stateMachine;
 
 @end
 
-@interface MPEventTests : XCTestCase
+@interface MPEventTests : MPBaseTestCase
 
 @end
 
@@ -25,6 +27,8 @@
 
 - (void)setUp {
     [super setUp];
+    
+    [MParticle sharedInstance].stateMachine = [[MPStateMachine alloc] init];
 }
 
 - (void)tearDown {
@@ -89,15 +93,16 @@
     
     [event beginTiming];
     
-    unsigned int sleepTimer = 1;
-    sleep(sleepTimer);
+    NSTimeInterval sleepTimer = 0.002;
+    double value = sleepTimer*1000000.0;
+    usleep(value);
     
     [event endTiming];
     
-    XCTAssertNotNil(event.startTime);
-    XCTAssertNotNil(event.endTime);
-    double referenceDuration = (sleepTimer * 1000.0 - 1.0);
-    XCTAssertGreaterThan([event.duration doubleValue], referenceDuration);
+    NSTimeInterval secondsElapsed = [event.endTime timeIntervalSince1970] - [event.startTime timeIntervalSince1970];
+    NSNumber *duration = @(trunc((secondsElapsed) * 1000));
+    XCTAssertNotEqualObjects(duration, @0);
+    XCTAssertEqualObjects(duration, event.duration);
 }
 
 - (void)testInvalidNames {
@@ -138,7 +143,7 @@
 
 - (void)testDictionaryRepresentation {
     MPSession *session = [[MPSession alloc] initWithStartTime:[[NSDate date] timeIntervalSince1970] userId:[MPPersistenceController mpId]];
-    MPStateMachine *stateMachine = [MPStateMachine sharedInstance];
+    MPStateMachine *stateMachine = [MParticle sharedInstance].stateMachine;
     stateMachine.currentSession = session;
     
     NSNumber *eventDuration = @2;
