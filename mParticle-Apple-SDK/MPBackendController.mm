@@ -288,14 +288,14 @@ static BOOL appBackgrounded = NO;
     });
     
     __weak MPBackendController *weakSelf = self;
-    
+    NSString *sessionId = session.uuid;
     dispatch_async(dispatch_get_main_queue(), ^{
         __strong MPBackendController *strongSelf = weakSelf;
         
         if (strongSelf) {
             [[NSNotificationCenter defaultCenter] postNotificationName:mParticleSessionDidBeginNotification
                                                                 object:strongSelf.delegate
-                                                              userInfo:@{mParticleSessionId:@(session.sessionId)}];
+                                                              userInfo:@{mParticleSessionId:sessionId}];
         }
     });
 }
@@ -304,7 +304,7 @@ static BOOL appBackgrounded = NO;
     [self.delegate sessionDidEnd:session];
     
     __weak MPBackendController *weakSelf = self;
-    NSNumber *sessionId = @(session.sessionId);
+    NSString *sessionId = session.uuid;
     dispatch_async(dispatch_get_main_queue(), ^{
         __strong MPBackendController *strongSelf = weakSelf;
         
@@ -1948,11 +1948,11 @@ static BOOL appBackgrounded = NO;
     NSPredicate *predicate = [NSPredicate predicateWithFormat:@"SELF[%@] == %@", kMPUserIdentityTypeKey, identityTypeNumber];
     NSDictionary *userIdentity = [[[self userIdentitiesForUserId:[MPPersistenceController mpId]] filteredArrayUsingPredicate:predicate] lastObject];
     
-    if (userIdentity &&
-        [userIdentity[kMPUserIdentityIdKey] caseInsensitiveCompare:userIdentityChange.userIdentityNew.value] == NSOrderedSame &&
-        ![userIdentity[kMPUserIdentityIdKey] isEqualToString:userIdentityChange.userIdentityNew.value])
-    {
-        return;
+    if (userIdentity && !MPIsNull(userIdentity[kMPUserIdentityIdKey])) {
+        if ([userIdentity[kMPUserIdentityIdKey] caseInsensitiveCompare:userIdentityChange.userIdentityNew.value] == NSOrderedSame &&
+            ![userIdentity[kMPUserIdentityIdKey] isEqualToString:userIdentityChange.userIdentityNew.value]) {
+            return;
+        }
     }
     
     BOOL (^objectTester)(id, NSUInteger, BOOL *) = ^(id obj, NSUInteger idx, BOOL *stop) {

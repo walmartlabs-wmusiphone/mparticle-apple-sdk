@@ -1,7 +1,7 @@
 #import "MPIConstants.h"
 
 // mParticle SDK Version
-NSString *const kMParticleSDKVersion = @"7.5.1";
+NSString *const kMParticleSDKVersion = @"7.5.4";
 
 // Message Type (dt)
 NSString *const kMPMessageTypeKey = @"dt";
@@ -202,6 +202,7 @@ NSString *const kMPRemoteConfigTriggerMessageTypesKey = @"dts";
 NSString *const kMPRemoteConfigUniqueIdentifierKey = @"das";
 NSString *const kMPRemoteConfigBracketKey = @"bk";
 NSString *const kMPRemoteConfigRestrictIDFA = @"rdlat";
+NSString *const kMPRemoteConfigAllowASR = @"iasr";
 
 // Notifications
 NSString *const kMPCrashReportOccurredNotification = @"MPCrashReportOccurredNotification";
