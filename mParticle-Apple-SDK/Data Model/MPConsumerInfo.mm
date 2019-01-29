@@ -45,29 +45,10 @@ NSString *const kMPCKExpiration = @"e";
     }
     
     BOOL isEqual = [_name isEqualToString:object.name];
-    
-//    if (isEqual && _content && object.content) {
-//        isEqual = [_content isEqualToString:object.content];
-//    } else if (isEqual && (_content || object.content)) {
-//        return NO;
-//    }
-//    
-//    if (isEqual && _domain && object.domain) {
-//        isEqual = [_domain isEqualToString:object.domain];
-//    } else if (isEqual && (_domain || object.domain)) {
-//        return NO;
-//    }
-//    
-//    if (isEqual && _expiration && object.expiration) {
-//        isEqual = [_expiration isEqualToString:object.expiration];
-//    } else if (isEqual && (_expiration || object.expiration)) {
-//        return NO;
-//    }
-    
     return isEqual;
 }
 
-#pragma mark NSCoding
+#pragma mark NSSecureCoding
 - (void)encodeWithCoder:(NSCoder *)coder {
     [coder encodeObject:_name forKey:@"name"];
 
@@ -88,17 +69,17 @@ NSString *const kMPCKExpiration = @"e";
     NSString *name = [coder decodeObjectForKey:@"name"];
     
     NSMutableDictionary *configuration = [[NSMutableDictionary alloc] initWithCapacity:2];
-    NSString *value = [coder decodeObjectForKey:@"content"];
+    NSString *value = [coder decodeObjectOfClass:[NSDictionary class] forKey:@"content"];
     if (value) {
         configuration[kMPCKContent] = value;
     }
     
-    value = [coder decodeObjectForKey:@"domain"];
+    value = [coder decodeObjectOfClass:[NSDictionary class] forKey:@"domain"];
     if (value) {
         configuration[kMPCKDomain] = value;
     }
     
-    value = [coder decodeObjectForKey:@"expiration"];
+    value = [coder decodeObjectOfClass:[NSDictionary class] forKey:@"expiration"];
     if (value) {
         configuration[kMPCKExpiration] = value;
     }
@@ -106,6 +87,10 @@ NSString *const kMPCKExpiration = @"e";
     self = [self initWithName:name configuration:configuration];
     
     return self;
+}
+
++ (BOOL)supportsSecureCoding {
+    return YES;
 }
 
 #pragma mark Public accessors
@@ -186,7 +171,7 @@ NSString *const kMPCKExpiration = @"e";
     return self;
 }
 
-#pragma mark NSCoding
+#pragma mark NSSecureCoding
 - (void)encodeWithCoder:(NSCoder *)coder {
     if (self.cookies) {
         [coder encodeObject:_cookies forKey:@"cookies"];
@@ -199,11 +184,15 @@ NSString *const kMPCKExpiration = @"e";
 - (id)initWithCoder:(NSCoder *)coder {
     self = [super init];
     if (self) {
-        _cookies = [coder decodeObjectForKey:@"cookies"];
-        _uniqueIdentifier = [coder decodeObjectForKey:@"uniqueIdentifier"];
+        _cookies = [coder decodeObjectOfClass:[NSArray<MPCookie *> class] forKey:@"cookies"];
+        _uniqueIdentifier = [coder decodeObjectOfClass:[NSString class] forKey:@"uniqueIdentifier"];
     }
     
     return self;
+}
+
++ (BOOL)supportsSecureCoding {
+    return YES;
 }
 
 #pragma mark Private methods

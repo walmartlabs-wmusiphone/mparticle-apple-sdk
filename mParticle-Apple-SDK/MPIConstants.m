@@ -1,7 +1,7 @@
 #import "MPIConstants.h"
 
 // mParticle SDK Version
-NSString *const kMParticleSDKVersion = @"7.5.4";
+NSString *const kMParticleSDKVersion = @"7.8.3";
 
 // Message Type (dt)
 NSString *const kMPMessageTypeKey = @"dt";
@@ -203,18 +203,16 @@ NSString *const kMPRemoteConfigUniqueIdentifierKey = @"das";
 NSString *const kMPRemoteConfigBracketKey = @"bk";
 NSString *const kMPRemoteConfigRestrictIDFA = @"rdlat";
 NSString *const kMPRemoteConfigAllowASR = @"iasr";
+NSString *const kMPRemoteConfigExcludeAnonymousUsersKey = @"eau";
 
 // Notifications
 NSString *const kMPCrashReportOccurredNotification = @"MPCrashReportOccurredNotification";
 NSString *const kMPConfigureExceptionHandlingNotification = @"MPConfigureExceptionHandlingNotification";
-NSString *const kMPRemoteNotificationReceivedNotification = @"MPRemoteNotificationReceivedNotification";
 NSString *const kMPUserNotificationDictionaryKey = @"MPUserNotificationDictionaryKey";
 NSString *const kMPUserNotificationActionKey = @"MPUserNotificationActionKey";
 NSString *const kMPRemoteNotificationDeviceTokenNotification = @"MPRemoteNotificationDeviceTokenNotification";
 NSString *const kMPRemoteNotificationDeviceTokenKey = @"MPRemoteNotificationDeviceTokenKey";
 NSString *const kMPRemoteNotificationOldDeviceTokenKey = @"MPRemoteNotificationOldDeviceTokenKey";
-NSString *const kMPLocalNotificationReceivedNotification = @"MPLocalNotificationReceivedNotification";
-NSString *const kMPUserNotificationRunningModeKey = @"MPUserNotificationRunningModeKey";
 
 // Config.plist keys
 NSString *const kMPConfigPlist = @"MParticleConfig";
@@ -223,6 +221,7 @@ NSString *const kMPConfigSecret = @"api_secret";
 NSString *const kMPConfigSharedGroupID = @"shared_group_id";
 NSString *const kMPConfigCustomUserAgent = @"custom_user_agent";
 NSString *const kMPConfigCollectUserAgent = @"collect_user_agent";
+NSString *const kMPConfigTrackNotifications = @"track_notifications";
 NSString *const kMPConfigSessionTimeout = @"session_timeout";
 NSString *const kMPConfigUploadInterval = @"upload_interval";
 NSString *const kMPConfigEnableSSL = @"enable_secure_transport";
@@ -356,13 +355,21 @@ const NSTimeInterval DEFAULT_UPLOAD_INTERVAL =
 const NSTimeInterval DEBUG_CONFIG_REQUESTS_QUIET_INTERVAL = 60.0;
 const NSTimeInterval CONFIG_REQUESTS_QUIET_INTERVAL = 10.0*60;
 
+const NSTimeInterval SEARCH_ADS_ATTRIBUTION_GLOBAL_TIMEOUT_SECONDS = 30.0;
+const NSTimeInterval SEARCH_ADS_ATTRIBUTION_DELAY_BEFORE_RETRY = 3.0;
+const NSInteger SEARCH_ADS_ATTRIBUTION_MAX_RETRIES = 4;
+
 // Attributes limits
 const NSInteger LIMIT_ATTR_COUNT = 100;
-const NSInteger LIMIT_ATTR_LENGTH = 256;
-const NSInteger LIMIT_NAME = 256;
-const NSInteger LIMIT_USER_ATTR_LENGTH = 4096;
+const NSInteger LIMIT_ATTR_KEY_LENGTH = 256;
+const NSInteger LIMIT_ATTR_VALUE_LENGTH = 4096;
 const NSInteger MAX_USER_ATTR_LIST_SIZE = 1000;
 const NSInteger MAX_USER_ATTR_LIST_ENTRY_LENGTH = 512;
 
 // Consent limits
 const NSInteger MAX_GDPR_CONSENT_PURPOSES = 100;
+
+// Size limits
+const NSInteger MAX_BYTES_PER_EVENT = 100*1024;
+const NSInteger MAX_BYTES_PER_BATCH = 2 * MAX_BYTES_PER_EVENT;
+const NSInteger MAX_EVENTS_PER_BATCH = 100;

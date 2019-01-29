@@ -3,19 +3,20 @@
 #import "MPSurrogateAppDelegate.h"
 #import "MPILogger.h"
 #import "MParticle.h"
+#import <objc/runtime.h>
 
 @interface MPAppDelegateProxy() {
     SEL applicationOpenURLOptionsSelector;
 #if TARGET_OS_IOS == 1
     SEL applicationOpenURLSelector;
     SEL didFailToRegisterForRemoteNotificationSelector;
-    SEL didReceiveLocalNotificationSelector;
     SEL didReceiveRemoteNotificationSelector;
     SEL didRegisterForRemoteNotificationSelector;
-    SEL handleActionWithIdentifierForLocalNotificationSelector;
     SEL handleActionWithIdentifierForRemoteNotificationSelector;
+    SEL handleActionWithIdentifierForRemoteNotificationSelectorWithResponseInfo;
     SEL continueUserActivityRestorationHandlerSelector;
     SEL didUpdateUserActivitySelector;
+    SEL originalAppDelegateSelector;
 #endif
 }
 
@@ -30,15 +31,17 @@
 #if TARGET_OS_IOS == 1
     applicationOpenURLSelector = @selector(application:openURL:sourceApplication:annotation:);
     didFailToRegisterForRemoteNotificationSelector = @selector(application:didFailToRegisterForRemoteNotificationsWithError:);
-    didReceiveLocalNotificationSelector = @selector(application:didReceiveLocalNotification:);
     didReceiveRemoteNotificationSelector = @selector(application:didReceiveRemoteNotification:fetchCompletionHandler:);
     didRegisterForRemoteNotificationSelector = @selector(application:didRegisterForRemoteNotificationsWithDeviceToken:);
-    handleActionWithIdentifierForLocalNotificationSelector = @selector(application:handleActionWithIdentifier:forLocalNotification:completionHandler:);
-    handleActionWithIdentifierForRemoteNotificationSelector = @selector(application:handleActionWithIdentifier:forRemoteNotification:completionHandler:);
     continueUserActivityRestorationHandlerSelector = @selector(application:continueUserActivity:restorationHandler:);
     didUpdateUserActivitySelector = @selector(application:didUpdateUserActivity:);
+    originalAppDelegateSelector = @selector(originalAppDelegate);
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated-declarations"
+    handleActionWithIdentifierForRemoteNotificationSelector = @selector(application:handleActionWithIdentifier:forRemoteNotification:completionHandler:);
+    handleActionWithIdentifierForRemoteNotificationSelectorWithResponseInfo = @selector(application:handleActionWithIdentifier:forRemoteNotification:withResponseInfo:completionHandler:);
+#pragma clang diagnostic pop
 #endif
-    
     return self;
 }
 
@@ -110,6 +113,23 @@
     return signature;
 }
 
+- (IMP)methodForSelector:(SEL)selector {
+    IMP method = NULL;
+    if (selector == @selector(originalAppDelegate)) {
+        method = method_getImplementation(class_getInstanceMethod(object_getClass(self), selector));
+    } else {
+        method = [self.surrogateAppDelegate methodForSelector:selector];
+        if (!method) {
+            method = [[_originalAppDelegate class] methodForSelector:selector];
+            
+            if (!method) {
+                method = [_originalAppDelegate methodForSelector:selector];
+            }
+        }
+    }
+    return method;
+}
+
 - (BOOL)respondsToSelector:(SEL)aSelector {
     BOOL respondsToSelector;
     if ([_originalAppDelegate respondsToSelector:aSelector]) {
@@ -120,15 +140,15 @@
                              ||
                              (aSelector == applicationOpenURLSelector) ||
                              (aSelector == didFailToRegisterForRemoteNotificationSelector) ||
-                             (aSelector == didReceiveLocalNotificationSelector) ||
                              (aSelector == didReceiveRemoteNotificationSelector) ||
                              (aSelector == didRegisterForRemoteNotificationSelector) ||
-                             (aSelector == handleActionWithIdentifierForLocalNotificationSelector) ||
                              (aSelector == handleActionWithIdentifierForRemoteNotificationSelector) ||
+                             (aSelector == handleActionWithIdentifierForRemoteNotificationSelectorWithResponseInfo) ||
                              (aSelector == continueUserActivityRestorationHandlerSelector) ||
-                             (aSelector == didUpdateUserActivitySelector);
+                             (aSelector == didUpdateUserActivitySelector)  ||
+                             (aSelector == originalAppDelegateSelector);
 #else
-                             ;
+        ;
 #endif
     }
     

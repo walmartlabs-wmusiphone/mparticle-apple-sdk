@@ -50,6 +50,7 @@
     self = [super init];
     if (self) {
         _backendController = [MParticle sharedInstance].backendController;
+        _isLoggedIn = false;
     }
     return self;
 }
@@ -108,6 +109,10 @@
     _cart = [[MPCart alloc] initWithUserId:userId];
 }
 
+- (void)setIsLoggedIn:(BOOL)isLoggedIn {
+    _isLoggedIn = isLoggedIn;
+}
+
 - (void)setUserIdentity:(NSString *)identityString identityType:(MPUserIdentity)identityType {
     
     NSDate *timestamp = [NSDate date];
@@ -121,25 +126,34 @@
 }
 
 - (void)setUserIdentitySync:(NSString *)identityString identityType:(MPUserIdentity)identityType timestamp:(NSDate *)timestamp {
+    __weak MParticleUser *weakSelf = self;
     [self.backendController setUserIdentity:identityString
                                identityType:identityType
                                   timestamp:timestamp
                           completionHandler:^(NSString *identityString, MPUserIdentity identityType, MPExecStatus execStatus) {
-                              
-                              if (execStatus == MPExecStatusSuccess) {
-                                  MPILogDebug(@"Set user identity: %@", identityString);
-                                  
-                                  // Forwarding calls to kits
-                                  dispatch_async(dispatch_get_main_queue(), ^{
-                                      [[MParticle sharedInstance].kitContainer forwardSDKCall:@selector(setUserIdentity:identityType:)
-                                                                         userIdentity:identityString
+                              __strong MParticleUser *strongSelf = weakSelf;
+                              if (strongSelf) {
+                                  [strongSelf forwardLegacyUserIdentityToKitContainer:identityString
                                                                          identityType:identityType
-                                                                           kitHandler:^(id<MPKitProtocol> kit, MPKitConfiguration *kitConfig) {
-                                                                               [kit setUserIdentity:identityString identityType:identityType];
-                                                                           }];
-                                  });
+                                                                           execStatus:execStatus];
                               }
                           }];
+}
+
+- (BOOL)forwardLegacyUserIdentityToKitContainer:(NSString *)identityString identityType:(MPUserIdentity)identityType execStatus:(MPExecStatus) execStatus {
+    if (execStatus != MPExecStatusSuccess || MPIsNull(identityString)) {
+        return NO;
+    }
+    MPILogDebug(@"Set user identity: %@", identityString);
+    dispatch_async(dispatch_get_main_queue(), ^{
+        [[MParticle sharedInstance].kitContainer forwardSDKCall:@selector(setUserIdentity:identityType:)
+                                                   userIdentity:identityString
+                                                   identityType:identityType
+                                                     kitHandler:^(id<MPKitProtocol> kit, MPKitConfiguration *kitConfig) {
+                                                         [kit setUserIdentity:identityString identityType:identityType];
+                                                     }];
+    });
+    return YES;
 }
 
 - (nullable NSNumber *)incrementUserAttribute:(NSString *)key byValue:(NSNumber *)value {
@@ -234,7 +248,6 @@
 - (void)setUserAttributeList:(nonnull NSString *)key values:(nonnull NSArray<NSString *> *)values {
     if (values.count == 0) {
         MPILogDebug(@"User attribute not updated. Please use removeUserAttribute.");
-        
         return;
     }
 
@@ -388,7 +401,7 @@
         [[MParticle sharedInstance].kitContainer forwardSDKCall:@selector(setConsentState:) consentState:state kitHandler:^(id<MPKitProtocol>  _Nonnull kit, MPConsentState * _Nullable filteredConsentState, MPKitConfiguration * _Nonnull kitConfiguration) {
             MPKitExecStatus *status = [kit setConsentState:filteredConsentState];
             if (!status.success) {
-                MPILogError(@"Failed to set consent state for kit=%@", status.kitCode);
+                MPILogError(@"Failed to set consent state for kit=%@", status.integrationId);
             }
         }];
     });

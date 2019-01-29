@@ -31,6 +31,7 @@ NSString *const kMPCEAction = @"an";
 NSString *const kMPCECheckoutStep = @"cs";
 NSString *const kMPCEScreenName = @"sn";
 NSString *const kMPCENonInteractive = @"ni";
+NSString *const kMPEventCustomFlags = @"flags";
 NSString *const kMPCEPromotions = @"pm";
 NSString *const kMPCEImpressions = @"pi";
 NSString *const kMPCEImpressionList = @"pil";
@@ -63,6 +64,7 @@ static NSArray *actionNames;
 @property (nonatomic, strong) NSMutableArray<MPProduct *> *productsList;
 @property (nonatomic, strong) NSMutableDictionary *userDefinedAttributes;
 @property (nonatomic, strong) NSDictionary *shoppingCartState;
+@property (nonatomic, strong, nonnull) NSMutableDictionary<NSString *, __kindof NSArray<NSString *> *> *customFlagsDictionary;
 @end
 
 @implementation MPCommerceEvent
@@ -334,6 +336,7 @@ static NSArray *actionNames;
         copyObject.promotionContainer = [_promotionContainer copy];
         copyObject.transactionAttributes = [_transactionAttributes copy];
         copyObject->_userDefinedAttributes = _userDefinedAttributes ? [[NSMutableDictionary alloc] initWithDictionary:[_userDefinedAttributes copy]] : nil;
+        copyObject->_customFlagsDictionary = _customFlagsDictionary ? [[NSMutableDictionary alloc] initWithDictionary:[_customFlagsDictionary copy]] : nil;
         copyObject->type = type;
         copyObject->commerceEventKind = commerceEventKind;
         copyObject->_timestamp = [_timestamp copy];
@@ -344,7 +347,7 @@ static NSArray *actionNames;
     return copyObject;
 }
 
-#pragma mark NSCoding
+#pragma mark NSSecureCoding
 - (void)encodeWithCoder:(NSCoder *)coder {
     [coder encodeInteger:type forKey:@"type"];
     [coder encodeInteger:commerceEventKind forKey:@"commerceEventKind"];
@@ -404,23 +407,23 @@ static NSArray *actionNames;
         return nil;
     }
     
-    NSDictionary *dictionary = [coder decodeObjectForKey:@"attributes"];
+    NSDictionary *dictionary = [coder decodeObjectOfClass:[NSDictionary class] forKey:@"attributes"];
     if (dictionary.count > 0) {
         self->_attributes = [[NSMutableDictionary alloc] initWithDictionary:dictionary];
     }
     
-    dictionary = [coder decodeObjectForKey:@"beautifiedAttributes"];
+    dictionary = [coder decodeObjectOfClass:[NSDictionary class] forKey:@"beautifiedAttributes"];
     if (dictionary) {
         self->_beautifiedAttributes = [[NSMutableDictionary alloc] initWithDictionary:dictionary];
     }
     
-    dictionary = [coder decodeObjectForKey:@"productImpressions"];
+    dictionary = [coder decodeObjectOfClass:[NSDictionary class] forKey:@"productImpressions"];
     if (dictionary.count > 0) {
         self->_productImpressions = [[NSMutableDictionary alloc] initWithDictionary:dictionary];
     }
     
     @try {
-        dictionary = [coder decodeObjectForKey:@"userDefinedAttributes"];
+        dictionary = [coder decodeObjectOfClass:[NSDictionary class] forKey:@"userDefinedAttributes"];
     }
     
     @catch ( NSException *e) {
@@ -434,27 +437,31 @@ static NSArray *actionNames;
         }
     }
     
-    NSArray *array = [coder decodeObjectForKey:@"productsList"];
+    NSArray *array = [coder decodeObjectOfClass:[NSArray class] forKey:@"productsList"];
     if (array.count > 0) {
         self->_productsList = [[NSMutableArray alloc] initWithArray:array];
     }
     
-    self->_timestamp = [coder decodeObjectForKey:@"timestamp"];
-    self->_currency = [coder decodeObjectForKey:@"currency"];
-    self->_screenName = [coder decodeObjectForKey:@"screenName"];
+    self->_timestamp = [coder decodeObjectOfClass:[NSDate class] forKey:@"timestamp"];
+    self->_currency = [coder decodeObjectOfClass:[NSString class] forKey:@"currency"];
+    self->_screenName = [coder decodeObjectOfClass:[NSString class] forKey:@"screenName"];
     self->_nonInteractive = [coder decodeBoolForKey:@"nonInteractive"];
     
-    self.promotionContainer = [coder decodeObjectForKey:@"promotionContainer"];
-    self.transactionAttributes = [coder decodeObjectForKey:@"transactionAttributes"];
+    self.promotionContainer = [coder decodeObjectOfClass:[MPPromotionContainer class] forKey:@"promotionContainer"];
+    self.transactionAttributes = [coder decodeObjectOfClass:[MPTransactionAttributes class] forKey:@"transactionAttributes"];
     type = (MPEventType)[coder decodeIntegerForKey:@"type"];
     commerceEventKind = (MPCommerceEventKind)[coder decodeIntegerForKey:@"commerceEventKind"];
     
-    dictionary = [coder decodeObjectForKey:@"shoppingCartState"];
+    dictionary = [coder decodeObjectOfClass:[NSDictionary class] forKey:@"shoppingCartState"];
     if (dictionary) {
         self->_shoppingCartState = [[NSMutableDictionary alloc] initWithDictionary:dictionary];
     }
     
     return self;
+}
+
++ (BOOL)supportsSecureCoding {
+    return YES;
 }
 
 #pragma mark MPCommerceEvent+Dictionary
@@ -498,6 +505,11 @@ static NSArray *actionNames;
     if (_nonInteractive) {
         dictionary[kMPCENonInteractive] = @(_nonInteractive);
     }
+    
+    if (self.customFlags) {
+        dictionary[kMPEventCustomFlags] = self.customFlags;
+    }
+
     
     // Product/Promotion
     switch (commerceEventKind) {
@@ -812,7 +824,21 @@ static NSArray *actionNames;
     _timestamp = timestamp;
 }
 
+#pragma mark Private accessors
+- (NSMutableDictionary *)customFlagsDictionary {
+    if (_customFlagsDictionary) {
+        return _customFlagsDictionary;
+    }
+    
+    _customFlagsDictionary = [[NSMutableDictionary alloc] initWithCapacity:1];
+    return _customFlagsDictionary;
+}
+
 #pragma mark Public accessors
+- (NSDictionary *)customFlags {
+    return (NSDictionary *)_customFlagsDictionary;
+}
+
 - (NSString *)checkoutOptions {
     return self.attributes[kMPCECheckoutOptions];
 }
@@ -970,6 +996,56 @@ static NSArray *actionNames;
     } else {
         _userDefinedAttributes = nil;
     }
+}
+
+- (void)addCustomFlag:(NSString *)customFlag withKey:(NSString *)key {
+    if (MPIsNull(customFlag)) {
+        MPILogError(@"'customFlag' cannot be nil or null.");
+        return;
+    }
+    
+    if (MPIsNull(key)) {
+        MPILogError(@"'key' cannot be nil or null.");
+        return;
+    }
+    
+    [self addCustomFlags:@[customFlag] withKey:key];
+}
+
+- (void)addCustomFlags:(nonnull NSArray<NSString *> *)customFlags withKey:(nonnull NSString *)key {
+    if (MPIsNull(customFlags)) {
+        MPILogError(@"'customFlags' cannot be nil or null.");
+        return;
+    }
+    
+    if (MPIsNull(key)) {
+        MPILogError(@"'key' cannot be nil or null.");
+        return;
+    }
+    
+    BOOL validDataType = [customFlags isKindOfClass:[NSArray class]];
+    NSAssert(validDataType, @"'customFlags' must be of type NSArray or an instance of a class inheriting from NSArray.");
+    if (!validDataType) {
+        MPILogError(@"'customFlags' must be of type NSArray or an instance of a class inheriting from NSArray.");
+        return;
+    }
+    
+    for (id item in customFlags) {
+        validDataType = [item isKindOfClass:[NSString class]];
+        NSAssert(validDataType, @"'customFlags' array items must be of type NSString or an instance of a class inheriting from NSString.");
+        if (!validDataType) {
+            MPILogError(@"'customFlags' array items must be of type NSString or an instance of a class inheriting from NSString.");
+            return;
+        }
+    }
+    
+    NSMutableArray<NSString *> *flags = self.customFlagsDictionary[key];
+    if (!flags) {
+        flags = [[NSMutableArray alloc] initWithCapacity:1];
+    }
+    
+    [flags addObjectsFromArray:customFlags];
+    self.customFlagsDictionary[key] = flags;
 }
 
 @end

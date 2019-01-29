@@ -19,10 +19,20 @@
 #import "MParticle.h"
 #import "MPBaseTestCase.h"
 #import "MPStateMachine.h"
+#import "OCMock.h"
+
+NSString *const kMPStateInformationKey = @"cs";
+NSString *const kMPStateDataConnectionKey = @"dct";
 
 @interface MParticle ()
 
 @property (nonatomic, strong) MPStateMachine *stateMachine;
+
+@end
+
+@interface MPStateMachine ()
+
+@property (nonatomic, strong) MParticleReachability *reachability;
 
 @end
 
@@ -82,7 +92,7 @@
     messageBuilder = [messageBuilder withTimestamp:[[NSDate date] timeIntervalSince1970]];
     XCTAssertNotEqual(messageBuilder.timestamp, timestamp, @"Timestamp is not being updated.");
     
-    MPMessage *message = (MPMessage *)[messageBuilder build];
+    MPMessage *message = [messageBuilder build];
     XCTAssertNotNil(message, @"MPMessage is not being built.");
     XCTAssertTrue([message isKindOfClass:[MPMessage class]], @"Returning the wrong kind of class instance.");
     XCTAssertNotNil(message.messageData, @"MPMessage has no data.");
@@ -93,8 +103,95 @@
     
     XCTAssertNotNil(messageBuilder, @"Message builder should not have been nil.");
     
-    message = (MPMessage *)[messageBuilder build];
+    message = [messageBuilder build];
     XCTAssertTrue([message isKindOfClass:[MPMessage class]], @"Returning the wrong kind of class instance.");
+}
+
+- (void)testMessageCurrentStateFields {
+    NSDictionary *messageInfo = @{@"key1":@"value1",
+                                  @"key2":@"value2",
+                                  @"key3":@"value3"};
+    
+    MPMessageBuilder *messageBuilder = [MPMessageBuilder newBuilderWithMessageType:MPMessageTypeEvent
+                                                                           session:self.session
+                                                                       messageInfo:messageInfo];
+    
+    XCTAssertEqualObjects(@"offline", messageBuilder.messageInfo[kMPStateInformationKey][kMPStateDataConnectionKey]);
+}
+
+- (void)testMessageCurrentStateFieldsWWAN {
+    MPStateMachine *stateMachine = [[MPStateMachine alloc] init];
+    id mockStateMachine = OCMPartialMock(stateMachine);
+    
+    [[[mockStateMachine stub] andReturnValue:OCMOCK_VALUE(MParticleNetworkStatusReachableViaWAN)] networkStatus];
+
+    MParticle *instance = [MParticle sharedInstance];
+    id mockInstance = OCMPartialMock(instance);
+    [[[mockInstance stub] andReturn:mockStateMachine] stateMachine];
+    [[[mockInstance stub] andReturn:mockInstance] sharedInstance];
+    
+    NSDictionary *messageInfo = @{@"key1":@"value1",
+                                  @"key2":@"value2",
+                                  @"key3":@"value3"};
+    
+    MPMessageBuilder *messageBuilder = [MPMessageBuilder newBuilderWithMessageType:MPMessageTypeEvent
+                                                                           session:self.session
+                                                                       messageInfo:messageInfo];
+    
+    XCTAssertEqualObjects(@"mobile", messageBuilder.messageInfo[kMPStateInformationKey][kMPStateDataConnectionKey]);
+    
+    [mockStateMachine stopMocking];
+    [mockInstance stopMocking];
+}
+
+- (void)testMessageCurrentStateFieldsWifi {
+    MPStateMachine *stateMachine = [[MPStateMachine alloc] init];
+    id mockStateMachine = OCMPartialMock(stateMachine);
+    
+    [[[mockStateMachine stub] andReturnValue:OCMOCK_VALUE(MParticleNetworkStatusReachableViaWiFi)] networkStatus];
+    
+    MParticle *instance = [MParticle sharedInstance];
+    id mockInstance = OCMPartialMock(instance);
+    [[[mockInstance stub] andReturn:mockStateMachine] stateMachine];
+    [[[mockInstance stub] andReturn:mockInstance] sharedInstance];
+    
+    NSDictionary *messageInfo = @{@"key1":@"value1",
+                                  @"key2":@"value2",
+                                  @"key3":@"value3"};
+    
+    MPMessageBuilder *messageBuilder = [MPMessageBuilder newBuilderWithMessageType:MPMessageTypeEvent
+                                                                           session:self.session
+                                                                       messageInfo:messageInfo];
+    
+    XCTAssertEqualObjects(@"wifi", messageBuilder.messageInfo[kMPStateInformationKey][kMPStateDataConnectionKey]);
+    
+    [mockStateMachine stopMocking];
+    [mockInstance stopMocking];
+}
+
+- (void)testMessageCurrentStateFieldsOffline {
+    MPStateMachine *stateMachine = [[MPStateMachine alloc] init];
+    id mockStateMachine = OCMPartialMock(stateMachine);
+    
+    [[[mockStateMachine stub] andReturnValue:OCMOCK_VALUE(MParticleNetworkStatusNotReachable)] networkStatus];
+    
+    MParticle *instance = [MParticle sharedInstance];
+    id mockInstance = OCMPartialMock(instance);
+    [[[mockInstance stub] andReturn:mockStateMachine] stateMachine];
+    [[[mockInstance stub] andReturn:mockInstance] sharedInstance];
+    
+    NSDictionary *messageInfo = @{@"key1":@"value1",
+                                  @"key2":@"value2",
+                                  @"key3":@"value3"};
+    
+    MPMessageBuilder *messageBuilder = [MPMessageBuilder newBuilderWithMessageType:MPMessageTypeEvent
+                                                                           session:self.session
+                                                                       messageInfo:messageInfo];
+    
+    XCTAssertEqualObjects(@"offline", messageBuilder.messageInfo[kMPStateInformationKey][kMPStateDataConnectionKey]);
+    
+    [mockStateMachine stopMocking];
+    [mockInstance stopMocking];
 }
 
 - (void)testEncodingandDecodingMessage {
@@ -126,7 +223,7 @@
     messageBuilder = [messageBuilder withTimestamp:[[NSDate date] timeIntervalSince1970]];
     XCTAssertNotEqual(messageBuilder.timestamp, timestamp, @"Timestamp is not being updated.");
     
-    MPMessage *message = (MPMessage *)[messageBuilder build];
+    MPMessage *message = [messageBuilder build];
     XCTAssertNotNil(message, @"MPMessage is not being built.");
     XCTAssertTrue([message isKindOfClass:[MPMessage class]], @"Returning the wrong kind of class instance.");
     XCTAssertNotNil(message.messageData, @"MPMessage has no data.");
@@ -137,7 +234,7 @@
     
     XCTAssertNotNil(messageBuilder, @"Message builder should not have been nil.");
     
-    message = (MPMessage *)[messageBuilder build];
+    message = [messageBuilder build];
     XCTAssertTrue([message isKindOfClass:[MPMessage class]], @"Returning the wrong kind of class instance.");
     
     NSData *messageData = [NSKeyedArchiver archivedDataWithRootObject:message];
@@ -201,7 +298,7 @@
     XCTAssertNotNil(messageBuilder, @"Message builder should not have been nil.");
     XCTAssertEqualObjects(messageBuilder.messageType, @"cm", @"Incorrect message type.");
     
-    MPMessage *message = (MPMessage *)[messageBuilder build];
+    MPMessage *message = [messageBuilder build];
     XCTAssertNotNil(message, @"MPMessage is not being built.");
     XCTAssertTrue([message isKindOfClass:[MPMessage class]], @"Returning the wrong kind of class instance.");
     XCTAssertNotNil(message.messageData, @"MPMessage has no data.");
@@ -227,7 +324,7 @@
     XCTAssertNotNil(messageBuilder, @"Message builder should not have been nil.");
     XCTAssertEqualObjects(messageBuilder.messageType, @"cm", @"Incorrect message type.");
     
-    MPMessage *message = (MPMessage *)[messageBuilder build];
+    MPMessage *message = [messageBuilder build];
     XCTAssertNotNil(message, @"MPMessage is not being built.");
     XCTAssertTrue([message isKindOfClass:[MPMessage class]], @"Returning the wrong kind of class instance.");
     XCTAssertNotNil(message.messageData, @"MPMessage has no data.");
@@ -273,7 +370,7 @@
                                                                            session:self.session
                                                                userAttributeChange:userAttributeChange];
     XCTAssertNotNil(messageBuilder);
-    MPMessage *message = (MPMessage *)[messageBuilder build];
+    MPMessage *message = [messageBuilder build];
     XCTAssertNotNil(message);
     
     NSDictionary *messageDictionary = [message dictionaryRepresentation];
@@ -293,7 +390,7 @@
                                              userAttributeChange:userAttributeChange];
 
     XCTAssertNotNil(messageBuilder);
-    message = (MPMessage *)[messageBuilder build];
+    message = [messageBuilder build];
     XCTAssertNotNil(message);
     
     messageDictionary = [message dictionaryRepresentation];
@@ -313,7 +410,7 @@
                                              userAttributeChange:userAttributeChange];
 
     XCTAssertNotNil(messageBuilder);
-    message = (MPMessage *)[messageBuilder build];
+    message = [messageBuilder build];
     XCTAssertNotNil(message);
     
     messageDictionary = [message dictionaryRepresentation];
@@ -332,7 +429,7 @@
                                              userAttributeChange:userAttributeChange];
 
     XCTAssertNotNil(messageBuilder);
-    message = (MPMessage *)[messageBuilder build];
+    message = [messageBuilder build];
     XCTAssertNotNil(message);
     
     messageDictionary = [message dictionaryRepresentation];

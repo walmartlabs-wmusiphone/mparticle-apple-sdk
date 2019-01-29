@@ -7,6 +7,8 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		04610F59215D8C8C001A36AB /* MParticleUserTests.m in Sources */ = {isa = PBXBuildFile; fileRef = 04610F58215D8C8B001A36AB /* MParticleUserTests.m */; };
+		04610F5A215D8C8C001A36AB /* MParticleUserTests.m in Sources */ = {isa = PBXBuildFile; fileRef = 04610F58215D8C8B001A36AB /* MParticleUserTests.m */; };
 		04B1670B20000E0F0027F077 /* MPIdentityTests.m in Sources */ = {isa = PBXBuildFile; fileRef = DB4F166C1F1511B100D625CD /* MPIdentityTests.m */; };
 		04B1670C20000E0F0027F077 /* MPIdentityTests.m in Sources */ = {isa = PBXBuildFile; fileRef = DB4F166C1F1511B100D625CD /* MPIdentityTests.m */; };
 		04F643F51EFC03E7000FADE3 /* MPIdentityApi.h in Headers */ = {isa = PBXBuildFile; fileRef = 04F643F31EFC03E7000FADE3 /* MPIdentityApi.h */; settings = {ATTRIBUTES = (Public, ); }; };
@@ -426,9 +428,13 @@
 		C9DD21001D8A203900D3ABBE /* MPUserAttributeChangeTests.m in Sources */ = {isa = PBXBuildFile; fileRef = C9DD20B61D8A190600D3ABBE /* MPUserAttributeChangeTests.m */; };
 		C9DD21021D8A204000D3ABBE /* MPZipTests.mm in Sources */ = {isa = PBXBuildFile; fileRef = C9DD20B81D8A190600D3ABBE /* MPZipTests.mm */; };
 		C9DD21051D8A22B000D3ABBE /* mParticle_Apple_SDK.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = C9DD1DFF1D8A118400D3ABBE /* mParticle_Apple_SDK.framework */; };
+		D30FE279212C9290000A92E8 /* WebKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = D30FE278212C9290000A92E8 /* WebKit.framework */; };
+		D3356CE6212F09BB00BC81ED /* MPArchivist.h in Headers */ = {isa = PBXBuildFile; fileRef = D3356CE4212F09BB00BC81ED /* MPArchivist.h */; };
+		D3356CE7212F09BB00BC81ED /* MPArchivist.h in Headers */ = {isa = PBXBuildFile; fileRef = D3356CE4212F09BB00BC81ED /* MPArchivist.h */; };
+		D3356CE8212F09BB00BC81ED /* MPArchivist.m in Sources */ = {isa = PBXBuildFile; fileRef = D3356CE5212F09BB00BC81ED /* MPArchivist.m */; };
+		D3356CE9212F09BB00BC81ED /* MPArchivist.m in Sources */ = {isa = PBXBuildFile; fileRef = D3356CE5212F09BB00BC81ED /* MPArchivist.m */; };
 		D36997ED20FF879E009613E5 /* MParticleTests.m in Sources */ = {isa = PBXBuildFile; fileRef = D36997EC20FF879E009613E5 /* MParticleTests.m */; };
 		D36997EE20FF879E009613E5 /* MParticleTests.m in Sources */ = {isa = PBXBuildFile; fileRef = D36997EC20FF879E009613E5 /* MParticleTests.m */; };
-		D37A016E20A0D2C000FF2B0F /* libOCMock.a in Frameworks */ = {isa = PBXBuildFile; fileRef = D37A016B20A0D2C000FF2B0F /* libOCMock.a */; };
 		D3832205209A446C0017CD06 /* MPIUserDefaultsTests.m in Sources */ = {isa = PBXBuildFile; fileRef = D3832204209A446C0017CD06 /* MPIUserDefaultsTests.m */; };
 		D3832206209A446C0017CD06 /* MPIUserDefaultsTests.m in Sources */ = {isa = PBXBuildFile; fileRef = D3832204209A446C0017CD06 /* MPIUserDefaultsTests.m */; };
 		D3CE95FE2073C02E000D1A22 /* FilteredMParticleUser.h in Headers */ = {isa = PBXBuildFile; fileRef = D3CE95FC2073C02E000D1A22 /* FilteredMParticleUser.h */; settings = {ATTRIBUTES = (Public, ); }; };
@@ -439,11 +445,17 @@
 		D3CE960720740893000D1A22 /* FilteredMPIdentityApiRequest.h in Headers */ = {isa = PBXBuildFile; fileRef = D3CE960420740893000D1A22 /* FilteredMPIdentityApiRequest.h */; settings = {ATTRIBUTES = (Public, ); }; };
 		D3CE960820740893000D1A22 /* FilteredMPIdentityApiRequest.m in Sources */ = {isa = PBXBuildFile; fileRef = D3CE960520740893000D1A22 /* FilteredMPIdentityApiRequest.m */; };
 		D3CE960920740893000D1A22 /* FilteredMPIdentityApiRequest.m in Sources */ = {isa = PBXBuildFile; fileRef = D3CE960520740893000D1A22 /* FilteredMPIdentityApiRequest.m */; };
+		D3D8839F2163BA8600669FF0 /* libOCMock.a in Frameworks */ = {isa = PBXBuildFile; fileRef = D37A016B20A0D2C000FF2B0F /* libOCMock.a */; };
+		D3D88439216E410800669FF0 /* libOCMocktvOS.a in Frameworks */ = {isa = PBXBuildFile; fileRef = D3D88438216E410800669FF0 /* libOCMocktvOS.a */; };
 		D3FB08DA20F5087F008FD7D8 /* MPBaseTestCase.m in Sources */ = {isa = PBXBuildFile; fileRef = D3FB08D920F5087F008FD7D8 /* MPBaseTestCase.m */; };
 		D3FB08DB20F5087F008FD7D8 /* MPBaseTestCase.m in Sources */ = {isa = PBXBuildFile; fileRef = D3FB08D920F5087F008FD7D8 /* MPBaseTestCase.m */; };
 		DB00F6381F4E11380070A74B /* MPKitAPITests.m in Sources */ = {isa = PBXBuildFile; fileRef = DB00F6371F4E11380070A74B /* MPKitAPITests.m */; };
 		DB00F6391F4E11380070A74B /* MPKitAPITests.m in Sources */ = {isa = PBXBuildFile; fileRef = DB00F6371F4E11380070A74B /* MPKitAPITests.m */; };
 		DB0773BD20F8F550006A48CE /* MPNetworkCommunicationTests.m in Sources */ = {isa = PBXBuildFile; fileRef = DB0773BC20F8F550006A48CE /* MPNetworkCommunicationTests.m */; };
+		DB0E7CFD2138B221008F8E5C /* MPIdentityApiRequestTests.m in Sources */ = {isa = PBXBuildFile; fileRef = DB0E7CFC2138B220008F8E5C /* MPIdentityApiRequestTests.m */; };
+		DB0E7CFE2138B221008F8E5C /* MPIdentityApiRequestTests.m in Sources */ = {isa = PBXBuildFile; fileRef = DB0E7CFC2138B220008F8E5C /* MPIdentityApiRequestTests.m */; };
+		DB339D422167C82C00F0B76E /* MPConnectorTests.m in Sources */ = {isa = PBXBuildFile; fileRef = DB339D412167C82C00F0B76E /* MPConnectorTests.m */; };
+		DB339D432167C82C00F0B76E /* MPConnectorTests.m in Sources */ = {isa = PBXBuildFile; fileRef = DB339D412167C82C00F0B76E /* MPConnectorTests.m */; };
 		DB3935141F8E4F5600AD073E /* MPKitSecondTestClassNoStartImmediately.m in Sources */ = {isa = PBXBuildFile; fileRef = DB3935101F8E4F5500AD073E /* MPKitSecondTestClassNoStartImmediately.m */; };
 		DB3935151F8E4F5600AD073E /* MPKitSecondTestClassNoStartImmediately.m in Sources */ = {isa = PBXBuildFile; fileRef = DB3935101F8E4F5500AD073E /* MPKitSecondTestClassNoStartImmediately.m */; };
 		DB3935161F8E4F5600AD073E /* MPKitTestClassNoStartImmediately.m in Sources */ = {isa = PBXBuildFile; fileRef = DB3935121F8E4F5500AD073E /* MPKitTestClassNoStartImmediately.m */; };
@@ -533,6 +545,7 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
+		04610F58215D8C8B001A36AB /* MParticleUserTests.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = MParticleUserTests.m; sourceTree = "<group>"; };
 		04F643F31EFC03E7000FADE3 /* MPIdentityApi.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = MPIdentityApi.h; path = Identity/MPIdentityApi.h; sourceTree = "<group>"; };
 		04F643F41EFC03E7000FADE3 /* MPIdentityApi.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; name = MPIdentityApi.m; path = Identity/MPIdentityApi.m; sourceTree = "<group>"; };
 		04F643FF1EFC2A61000FADE3 /* MPIdentityApiRequest.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = MPIdentityApiRequest.h; path = Identity/MPIdentityApiRequest.h; sourceTree = "<group>"; };
@@ -755,6 +768,9 @@
 		C9DD20B51D8A190600D3ABBE /* MPURLRequestBuilderTests.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = MPURLRequestBuilderTests.m; sourceTree = "<group>"; };
 		C9DD20B61D8A190600D3ABBE /* MPUserAttributeChangeTests.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = MPUserAttributeChangeTests.m; sourceTree = "<group>"; };
 		C9DD20B81D8A190600D3ABBE /* MPZipTests.mm */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.objcpp; path = MPZipTests.mm; sourceTree = "<group>"; };
+		D30FE278212C9290000A92E8 /* WebKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = WebKit.framework; path = System/Library/Frameworks/WebKit.framework; sourceTree = SDKROOT; };
+		D3356CE4212F09BB00BC81ED /* MPArchivist.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = MPArchivist.h; sourceTree = "<group>"; };
+		D3356CE5212F09BB00BC81ED /* MPArchivist.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = MPArchivist.m; sourceTree = "<group>"; };
 		D36997EC20FF879E009613E5 /* MParticleTests.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = MParticleTests.m; sourceTree = "<group>"; };
 		D37A016B20A0D2C000FF2B0F /* libOCMock.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; path = libOCMock.a; sourceTree = "<group>"; };
 		D37A017120A0E5B200FF2B0F /* OCMockObject.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = OCMockObject.h; sourceTree = "<group>"; };
@@ -772,10 +788,13 @@
 		D3CE95FD2073C02E000D1A22 /* FilteredMParticleUser.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; name = FilteredMParticleUser.m; path = Identity/FilteredMParticleUser.m; sourceTree = "<group>"; };
 		D3CE960420740893000D1A22 /* FilteredMPIdentityApiRequest.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = FilteredMPIdentityApiRequest.h; path = Identity/FilteredMPIdentityApiRequest.h; sourceTree = "<group>"; };
 		D3CE960520740893000D1A22 /* FilteredMPIdentityApiRequest.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; name = FilteredMPIdentityApiRequest.m; path = Identity/FilteredMPIdentityApiRequest.m; sourceTree = "<group>"; };
+		D3D88438216E410800669FF0 /* libOCMocktvOS.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; path = libOCMocktvOS.a; sourceTree = "<group>"; };
 		D3FB08D920F5087F008FD7D8 /* MPBaseTestCase.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = MPBaseTestCase.m; sourceTree = "<group>"; };
 		D3FB08DC20F50ACD008FD7D8 /* MPBaseTestCase.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = MPBaseTestCase.h; sourceTree = "<group>"; };
 		DB00F6371F4E11380070A74B /* MPKitAPITests.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = MPKitAPITests.m; sourceTree = "<group>"; };
 		DB0773BC20F8F550006A48CE /* MPNetworkCommunicationTests.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = MPNetworkCommunicationTests.m; sourceTree = "<group>"; };
+		DB0E7CFC2138B220008F8E5C /* MPIdentityApiRequestTests.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = MPIdentityApiRequestTests.m; sourceTree = "<group>"; };
+		DB339D412167C82C00F0B76E /* MPConnectorTests.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = MPConnectorTests.m; sourceTree = "<group>"; };
 		DB3935101F8E4F5500AD073E /* MPKitSecondTestClassNoStartImmediately.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = MPKitSecondTestClassNoStartImmediately.m; sourceTree = "<group>"; };
 		DB3935111F8E4F5500AD073E /* MPKitSecondTestClassNoStartImmediately.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = MPKitSecondTestClassNoStartImmediately.h; sourceTree = "<group>"; };
 		DB3935121F8E4F5500AD073E /* MPKitTestClassNoStartImmediately.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = MPKitTestClassNoStartImmediately.m; sourceTree = "<group>"; };
@@ -822,6 +841,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				DB93D90C20AC86B700A974E7 /* libsqlite3.tbd in Frameworks */,
+				D3D88439216E410800669FF0 /* libOCMocktvOS.a in Frameworks */,
 				C911FD811D8A3524002A3516 /* mParticle_Apple_SDK.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -846,6 +866,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				D30FE279212C9290000A92E8 /* WebKit.framework in Frameworks */,
 				C9DD206A1D8A146F00D3ABBE /* AdSupport.framework in Frameworks */,
 				C9DD20801D8A14E200D3ABBE /* CoreGraphics.framework in Frameworks */,
 				C9DD207E1D8A14D800D3ABBE /* CoreLocation.framework in Frameworks */,
@@ -866,9 +887,9 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				D3D8839F2163BA8600669FF0 /* libOCMock.a in Frameworks */,
 				DB93D90A20AC86AB00A974E7 /* libsqlite3.tbd in Frameworks */,
 				C9DD21051D8A22B000D3ABBE /* mParticle_Apple_SDK.framework in Frameworks */,
-				D37A016E20A0D2C000FF2B0F /* libOCMock.a in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -1169,6 +1190,8 @@
 		C9DD1D141D8A112B00D3ABBE /* Utils */ = {
 			isa = PBXGroup;
 			children = (
+				D3356CE4212F09BB00BC81ED /* MPArchivist.h */,
+				D3356CE5212F09BB00BC81ED /* MPArchivist.m */,
 				DB9AA19E1EFD806000340D02 /* MPIUserDefaults.h */,
 				DB9AA19F1EFD806000340D02 /* MPIUserDefaults.m */,
 				DB58FAFF1E9FD06800AB5402 /* MPConvertJS.h */,
@@ -1220,6 +1243,7 @@
 		C9DD20661D8A146900D3ABBE /* Frameworks */ = {
 			isa = PBXGroup;
 			children = (
+				D30FE278212C9290000A92E8 /* WebKit.framework */,
 				DB93D90B20AC86B700A974E7 /* libsqlite3.tbd */,
 				C91E3AE81D92CFA00062B8DA /* UserNotifications.framework */,
 				C9DD207F1D8A14E200D3ABBE /* CoreGraphics.framework */,
@@ -1241,6 +1265,8 @@
 		C9DD20901D8A190600D3ABBE /* UnitTests */ = {
 			isa = PBXGroup;
 			children = (
+				04610F58215D8C8B001A36AB /* MParticleUserTests.m */,
+				DB0E7CFC2138B220008F8E5C /* MPIdentityApiRequestTests.m */,
 				DBCBF44320A9F9310012ECAA /* Libraries */,
 				C9DD20931D8A190600D3ABBE /* Info.plist */,
 				D3FB08DC20F50ACD008FD7D8 /* MPBaseTestCase.h */,
@@ -1301,6 +1327,7 @@
 				DB556EC620A4D3A2001EDBC3 /* MPConsentKitFilterTests.m */,
 				DB0773BC20F8F550006A48CE /* MPNetworkCommunicationTests.m */,
 				D36997EC20FF879E009613E5 /* MParticleTests.m */,
+				DB339D412167C82C00F0B76E /* MPConnectorTests.m */,
 			);
 			path = UnitTests;
 			sourceTree = "<group>";
@@ -1342,6 +1369,7 @@
 			children = (
 				D37A017020A0E5B200FF2B0F /* OCMock */,
 				D37A016B20A0D2C000FF2B0F /* libOCMock.a */,
+				D3D88438216E410800669FF0 /* libOCMocktvOS.a */,
 			);
 			path = Libraries;
 			sourceTree = "<group>";
@@ -1365,6 +1393,7 @@
 				C935A7491D8A2E3800A1EE2F /* MPCurrentState.h in Headers */,
 				C935A6F21D8A2DF400A1EE2F /* MPProduct.h in Headers */,
 				C935A6C11D8A2DE700A1EE2F /* MPAppboy.h in Headers */,
+				D3356CE7212F09BB00BC81ED /* MPArchivist.h in Headers */,
 				C935A6BB1D8A2DDF00A1EE2F /* MPAppDelegateProxy.h in Headers */,
 				C935A7051D8A2E0500A1EE2F /* MPAttributeProjection.h in Headers */,
 				DBA894691F17CBF1005B21FB /* MPIdentityDTO.h in Headers */,
@@ -1515,6 +1544,7 @@
 				DB58FB011E9FD06800AB5402 /* MPConvertJS.h in Headers */,
 				C9DD20211D8A141400D3ABBE /* MPPersistenceController.h in Headers */,
 				DB83983E2087E8780031AB1D /* MPConsentSerialization.h in Headers */,
+				D3356CE6212F09BB00BC81ED /* MPArchivist.h in Headers */,
 				C9C9DC3A1DAC04670079A05D /* MPForwardQueueParameters.h in Headers */,
 				C9DD1FA21D8A13D000D3ABBE /* MPCustomModule.h in Headers */,
 				C9DD20271D8A142000D3ABBE /* MPBracket.h in Headers */,
@@ -1736,12 +1766,14 @@
 				DB3935151F8E4F5600AD073E /* MPKitSecondTestClassNoStartImmediately.m in Sources */,
 				DBC78E232087BB2800210806 /* MPGDPRConsentTests.m in Sources */,
 				C911FD931D8A365A002A3516 /* MPForwardQueueItemTests.m in Sources */,
+				DB0E7CFE2138B221008F8E5C /* MPIdentityApiRequestTests.m in Sources */,
 				C911FD9C1D8A365A002A3516 /* MPLaunchInfoTests.m in Sources */,
 				C911FD971D8A365A002A3516 /* MPKitConfigurationTests.mm in Sources */,
 				C911FD8B1D8A365A002A3516 /* MPBase_Attribute_Event_ProjectionTests.m in Sources */,
 				DB8C8A3A1FBCA63200DEC7C2 /* MParticleOptionsTests.m in Sources */,
 				D36997EE20FF879E009613E5 /* MParticleTests.m in Sources */,
 				DBA42901205ADEB7006AB971 /* MPConvertJSTests.m in Sources */,
+				04610F5A215D8C8C001A36AB /* MParticleUserTests.m in Sources */,
 				C911FD9F1D8A365A002A3516 /* MPPersistenceControllerTests.mm in Sources */,
 				C911FD951D8A365A002A3516 /* MPIntegrationAttributesTest.m in Sources */,
 				B2AE029F1FFD59D000C4DD89 /* MPResponseEventsTest.m in Sources */,
@@ -1756,6 +1788,7 @@
 				C911FDA71D8A365A002A3516 /* MPZipTests.mm in Sources */,
 				DB00F6391F4E11380070A74B /* MPKitAPITests.m in Sources */,
 				C911FD901D8A365A002A3516 /* MPDataModelTests.m in Sources */,
+				DB339D432167C82C00F0B76E /* MPConnectorTests.m in Sources */,
 				C9AB50691DFF0C4B0036BEE9 /* MPKitActivityTests.m in Sources */,
 				DBC78E202087A5D900210806 /* MPConsentStateTests.m in Sources */,
 				DB678C3C1F1817EA0015587D /* MPUserIdentityChangeTests.m in Sources */,
@@ -1834,6 +1867,7 @@
 				C935A74C1D8A2E3800A1EE2F /* MPDateFormatter.m in Sources */,
 				C935A6D51D8A2DED00A1EE2F /* MPMessage.m in Sources */,
 				C935A7471D8A2E3800A1EE2F /* MPBracket.cpp in Sources */,
+				D3356CE9212F09BB00BC81ED /* MPArchivist.m in Sources */,
 				C935A74A1D8A2E3800A1EE2F /* MPCurrentState.m in Sources */,
 				C935A7141D8A2E0500A1EE2F /* MPKitFilter.m in Sources */,
 				C935A76E1D8A2E4000A1EE2F /* MPBackendController.mm in Sources */,
@@ -1932,6 +1966,7 @@
 				C9DD1FE91D8A13EA00D3ABBE /* MPEventProjection.mm in Sources */,
 				C9DD205A1D8A142900D3ABBE /* MPBackendController.mm in Sources */,
 				C9DD1FB01D8A13D600D3ABBE /* MPForwardRecord.mm in Sources */,
+				D3356CE8212F09BB00BC81ED /* MPArchivist.m in Sources */,
 				C9DD1FD21D8A13DC00D3ABBE /* MPProduct.mm in Sources */,
 				C9DD1FC21D8A13D600D3ABBE /* MPUpload.m in Sources */,
 				C9DD20221D8A141400D3ABBE /* MPPersistenceController.mm in Sources */,
@@ -1974,12 +2009,14 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				DB339D422167C82C00F0B76E /* MPConnectorTests.m in Sources */,
 				DB0773BD20F8F550006A48CE /* MPNetworkCommunicationTests.m in Sources */,
 				C9DD21001D8A203900D3ABBE /* MPUserAttributeChangeTests.m in Sources */,
 				DB00F6381F4E11380070A74B /* MPKitAPITests.m in Sources */,
 				C9DD20F21D8A1FF000D3ABBE /* MPKitConfigurationTests.mm in Sources */,
 				04B1670B20000E0F0027F077 /* MPIdentityTests.m in Sources */,
 				C9DD20F01D8A1FAF00D3ABBE /* MPIntegrationAttributesTest.m in Sources */,
+				04610F59215D8C8C001A36AB /* MParticleUserTests.m in Sources */,
 				C9AB50681DFF0C4B0036BEE9 /* MPKitActivityTests.m in Sources */,
 				C9DD20ED1D8A1FA500D3ABBE /* MPEventTests.mm in Sources */,
 				C9DD20E41D8A194D00D3ABBE /* MPAppNotificationHandlerTests.m in Sources */,
@@ -2021,6 +2058,7 @@
 				DBC78E222087BB0E00210806 /* MPGDPRConsentTests.m in Sources */,
 				C9DD20F81D8A201200D3ABBE /* MPMessageBuilderTests.m in Sources */,
 				DBA42900205ADEB7006AB971 /* MPConvertJSTests.m in Sources */,
+				DB0E7CFD2138B221008F8E5C /* MPIdentityApiRequestTests.m in Sources */,
 				DBC78E1F2087A5D900210806 /* MPConsentStateTests.m in Sources */,
 				D36997ED20FF879E009613E5 /* MParticleTests.m in Sources */,
 			);
@@ -2048,13 +2086,16 @@
 				CODE_SIGN_IDENTITY = "";
 				CODE_SIGN_STYLE = Manual;
 				DEVELOPMENT_TEAM = "";
+				HEADER_SEARCH_PATHS = "$(PROJECT_DIR)/UnitTests/Libraries";
 				INFOPLIST_FILE = UnitTests/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks @loader_path/Frameworks";
 				LIBRARY_SEARCH_PATHS = (
 					"$(inherited)",
 					"$(PROJECT_DIR)/mParticle-Apple-SDK/Libraries",
+					"$(PROJECT_DIR)/UnitTests/Libraries",
 				);
 				MACH_O_TYPE = mh_dylib;
+				OTHER_LDFLAGS = "-ObjC";
 				PRODUCT_BUNDLE_IDENTIFIER = "com.mparticle.mParticle-tvOS-SDKTests";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				PROVISIONING_PROFILE_SPECIFIER = "";
@@ -2070,13 +2111,16 @@
 				CODE_SIGN_IDENTITY = "";
 				CODE_SIGN_STYLE = Manual;
 				DEVELOPMENT_TEAM = "";
+				HEADER_SEARCH_PATHS = "$(PROJECT_DIR)/UnitTests/Libraries";
 				INFOPLIST_FILE = UnitTests/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks @loader_path/Frameworks";
 				LIBRARY_SEARCH_PATHS = (
 					"$(inherited)",
 					"$(PROJECT_DIR)/mParticle-Apple-SDK/Libraries",
+					"$(PROJECT_DIR)/UnitTests/Libraries",
 				);
 				MACH_O_TYPE = mh_dylib;
+				OTHER_LDFLAGS = "-ObjC";
 				PRODUCT_BUNDLE_IDENTIFIER = "com.mparticle.mParticle-tvOS-SDKTests";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				PROVISIONING_PROFILE_SPECIFIER = "";

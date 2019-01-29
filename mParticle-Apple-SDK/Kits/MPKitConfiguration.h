@@ -3,7 +3,7 @@
 @class MPEventProjection;
 @class MPConsentKitFilter;
 
-@interface MPKitConfiguration : NSObject <NSCoding, NSCopying>
+@interface MPKitConfiguration : NSObject <NSSecureCoding, NSCopying>
 
 @property (nonatomic, strong, readonly, nonnull) NSNumber *configurationHash;
 @property (nonatomic, strong, nonnull) NSDictionary *configuration;
@@ -12,7 +12,7 @@
 @property (nonatomic, strong, readonly, nullable) NSArray<NSNumber *> *configuredMessageTypeProjections;
 @property (nonatomic, strong, readonly, nullable) NSArray<MPEventProjection *> *defaultProjections;
 @property (nonatomic, strong, readonly, nullable) NSArray<MPEventProjection *> *projections;
-@property (nonatomic, strong, readonly, nullable) NSNumber *kitCode;
+@property (nonatomic, strong, readonly, nullable) NSNumber *integrationId;
 
 @property (nonatomic, assign) BOOL attributeValueFilteringIsActive;
 @property (nonatomic, assign) BOOL attributeValueFilteringShouldIncludeMatches;
@@ -36,6 +36,7 @@
 @property (nonatomic, weak, readonly, nullable) NSDictionary *consentRegulationFilters;
 @property (nonatomic, weak, readonly, nullable) NSDictionary *consentPurposeFilters;
 @property (nonatomic, strong, readonly, nullable) MPConsentKitFilter *consentKitFilter;
+@property (nonatomic, readonly) BOOL excludeAnonymousUsers;
 
 - (nonnull instancetype)initWithDictionary:(nonnull NSDictionary *)configurationDictionary;
 
