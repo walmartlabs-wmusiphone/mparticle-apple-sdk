@@ -24,6 +24,8 @@
 #import "MPConvertJS.h"
 #import "MPIdentityApi.h"
 #import "MPEvent+Internal.h"
+#import "MPIHasher.h"
+#import "MPApplication.h"
 
 #if TARGET_OS_IOS == 1
     #import "MPLocationManager.h"
@@ -95,6 +97,16 @@ NSString *const kMPStateKey = @"state";
 
 @end
 
+@interface MParticleSession ()
+
+@property (nonatomic, readwrite) NSNumber *sessionID;
+@property (nonatomic, readwrite) NSString *UUID;
+
+@end
+
+@implementation MParticleSession
+@end
+
 @implementation MPNetworkOptions
 
 - (instancetype)init
@@ -134,6 +146,8 @@ NSString *const kMPStateKey = @"state";
     if (self) {
         _proxyAppDelegate = YES;
         _collectUserAgent = YES;
+        _collectSearchAdsAttribution = YES;
+        _trackNotifications = YES;
         _automaticSessionTracking = YES;
         _startKitsAsync = NO;
         _logLevel = MPILogLevelNone;
@@ -207,6 +221,9 @@ NSString *const kMPStateKey = @"state";
     _initialized = NO;
     _kitActivity = [[MPKitActivity alloc] init];
     _kitsInitializedBlocks = [NSMutableArray array];
+    _collectUserAgent = YES;
+    _collectSearchAdsAttribution = YES;
+    _trackNotifications = YES;
     _automaticSessionTracking = YES;
     _appNotificationHandler = [[MPAppNotificationHandler alloc] init];
     _stateMachine = [[MPStateMachine alloc] init];
@@ -285,24 +302,22 @@ NSString *const kMPStateKey = @"state";
 - (void)sessionDidBegin:(MPSession *)session {
     dispatch_async(dispatch_get_main_queue(), ^{
         [[MParticle sharedInstance].kitContainer forwardSDKCall:@selector(beginSession)
-                                                  event:nil
-                                            messageType:MPMessageTypeSessionStart
-                                               userInfo:nil
-                                             kitHandler:^(id<MPKitProtocol> kit, MPEvent *forwardEvent, MPKitExecStatus **execStatus) {
-                                                 *execStatus = [kit beginSession];
-                                             }];
+                                                          event:nil
+                                                     parameters:nil
+                                                    messageType:MPMessageTypeSessionStart
+                                                       userInfo:nil
+         ];
     });
 }
 
 - (void)sessionDidEnd:(MPSession *)session {
     dispatch_async(dispatch_get_main_queue(), ^{
         [[MParticle sharedInstance].kitContainer forwardSDKCall:@selector(endSession)
-                                                  event:nil
-                                            messageType:MPMessageTypeSessionEnd
-                                               userInfo:nil
-                                             kitHandler:^(id<MPKitProtocol> kit, MPEvent *forwardEvent, MPKitExecStatus **execStatus) {
-                                                 *execStatus = [kit endSession];
-                                             }];
+                                                          event:nil
+                                                     parameters:nil
+                                                    messageType:MPMessageTypeSessionEnd
+                                                       userInfo:nil
+         ];
     });
 }
 
@@ -310,24 +325,22 @@ NSString *const kMPStateKey = @"state";
 - (void)forwardLogInstall {
     dispatch_async(dispatch_get_main_queue(), ^{
         [[MParticle sharedInstance].kitContainer forwardSDKCall:_cmd
-                                                  event:nil
-                                            messageType:MPMessageTypeUnknown
-                                               userInfo:nil
-                                             kitHandler:^(id<MPKitProtocol> kit, MPEvent *forwardEvent, MPKitExecStatus **execStatus) {
-                                                 *execStatus = [kit logInstall];
-                                             }];
+                                                          event:nil
+                                                     parameters:nil
+                                                    messageType:MPMessageTypeUnknown
+                                                       userInfo:nil
+         ];
     });
 }
 
 - (void)forwardLogUpdate {
     dispatch_async(dispatch_get_main_queue(), ^{
         [[MParticle sharedInstance].kitContainer forwardSDKCall:_cmd
-                                                  event:nil
-                                            messageType:MPMessageTypeUnknown
-                                               userInfo:nil
-                                             kitHandler:^(id<MPKitProtocol> kit, MPEvent *forwardEvent, MPKitExecStatus **execStatus) {
-                                                 *execStatus = [kit logUpdate];
-                                             }];
+                                                          event:nil
+                                                     parameters:nil
+                                                    messageType:MPMessageTypeUnknown
+                                                       userInfo:nil
+         ];
     });
 }
 
@@ -353,12 +366,11 @@ NSString *const kMPStateKey = @"state";
 - (void)setDebugMode:(BOOL)debugMode {
     dispatch_async([MParticle messageQueue], ^{
         [[MParticle sharedInstance].kitContainer forwardSDKCall:_cmd
-                                                  event:nil
-                                            messageType:MPMessageTypeUnknown
-                                               userInfo:@{kMPStateKey:@(debugMode)}
-                                             kitHandler:^(id<MPKitProtocol> kit, MPEvent *forwardEvent, MPKitExecStatus **execStatus) {
-                                                 *execStatus = [kit setDebugMode:debugMode];
-                                             }];
+                                                          event:nil
+                                                     parameters:nil
+                                                    messageType:MPMessageTypeUnknown
+                                                       userInfo:@{kMPStateKey:@(debugMode)}
+         ];
     });
 }
 
@@ -373,12 +385,11 @@ NSString *const kMPStateKey = @"state";
     
     dispatch_async(dispatch_get_main_queue(), ^{
         [[MParticle sharedInstance].kitContainer forwardSDKCall:@selector(setDebugMode:)
-                                                  event:nil
-                                            messageType:MPMessageTypeUnknown
-                                               userInfo:@{kMPStateKey:@(consoleLogging)}
-                                             kitHandler:^(id<MPKitProtocol> kit, MPEvent *forwardEvent, MPKitExecStatus **execStatus) {
-                                                 *execStatus = [kit setDebugMode:consoleLogging];
-                                             }];
+                                                          event:nil
+                                                     parameters:nil
+                                                    messageType:MPMessageTypeUnknown
+                                                       userInfo:@{kMPStateKey:@(consoleLogging)}
+         ];
     });
 }
 
@@ -406,26 +417,22 @@ NSString *const kMPStateKey = @"state";
     _optOut = optOut;
     self.stateMachine.optOut = optOut;
     
-    dispatch_async(dispatch_get_main_queue(), ^{
-        // Forwarding calls to kits
-        [[MParticle sharedInstance].kitContainer forwardSDKCall:@selector(setOptOut:)
-                                                  event:nil
-                                            messageType:MPMessageTypeOptOut
-                                               userInfo:@{kMPStateKey:@(optOut)}
-                                             kitHandler:^(id<MPKitProtocol> kit, MPEvent *forwardEvent, MPKitExecStatus **execStatus) {
-                                                 *execStatus = [kit setOptOut:optOut];
-                                             }];
-        
-        [self.backendController setOptOut:optOut
-                        completionHandler:^(BOOL optOut, MPExecStatus execStatus) {
-
-                            if (execStatus == MPExecStatusSuccess) {
-                                MPILogDebug(@"Set Opt Out: %d", optOut);
-                            } else {
-                                MPILogDebug(@"Set Opt Out Failed: %lu", (unsigned long)execStatus);
-                            }
-                        }];
-    });
+    // Forwarding calls to kits
+    [[MParticle sharedInstance].kitContainer forwardSDKCall:@selector(setOptOut:)
+                                                      event:nil
+                                                 parameters:nil
+                                                messageType:MPMessageTypeOptOut
+                                                   userInfo:@{kMPStateKey:@(optOut)}
+     ];
+    
+    [self.backendController setOptOut:optOut
+                    completionHandler:^(BOOL optOut, MPExecStatus execStatus) {
+                        if (execStatus == MPExecStatusSuccess) {
+                            MPILogDebug(@"Set Opt Out: %d", optOut);
+                        } else {
+                            MPILogDebug(@"Set Opt Out Failed: %lu", (unsigned long)execStatus);
+                        }
+                    }];
 }
 
 - (NSTimeInterval)sessionTimeout {
@@ -498,7 +505,8 @@ NSString *const kMPStateKey = @"state";
     options.apiSecret = secret;
     options.automaticSessionTracking = [self.configSettings[kMPConfigSharedGroupID] boolValue];
     options.customUserAgent = self.configSettings[kMPConfigCustomUserAgent];
-    options.collectUserAgent = [self.configSettings[kMPConfigCollectUserAgent] boolValue];
+    options.collectUserAgent = (self.configSettings[kMPConfigCollectUserAgent] != nil && self.configSettings[kMPConfigCollectUserAgent] != [NSNull null]) ? [self.configSettings[kMPConfigCollectUserAgent] boolValue] : YES;
+    options.trackNotifications = (self.configSettings[kMPConfigTrackNotifications] != nil && self.configSettings[kMPConfigTrackNotifications] != [NSNull null]) ? [self.configSettings[kMPConfigTrackNotifications] boolValue] : YES;
     options.installType = MPInstallationTypeAutodetect;
     options.environment = MPEnvironmentAutoDetect;
     options.proxyAppDelegate = YES;
@@ -551,6 +559,8 @@ NSString *const kMPStateKey = @"state";
     _automaticSessionTracking = self.options.automaticSessionTracking;
     _customUserAgent = self.options.customUserAgent;
     _collectUserAgent = self.options.collectUserAgent;
+    _collectSearchAdsAttribution = self.options.collectSearchAdsAttribution;
+    _trackNotifications = self.options.trackNotifications;
     
     MPConsentState *consentState = self.options.consentState;
     
@@ -663,6 +673,29 @@ NSString *const kMPStateKey = @"state";
                        }];
 }
 
+- (NSNumber *)sessionIDFromUUID:(NSString *)uuid {
+    NSNumber *sessionID = nil;
+    sessionID = @([MPIHasher hashStringUTF16:uuid].integerValue);
+    return sessionID;
+}
+
+- (MParticleSession *)currentSession {
+    MParticleSession *session = nil;
+    
+    MPSession *sessionInternal = MParticle.sharedInstance.stateMachine.currentSession;
+    
+    if (sessionInternal) {
+        NSNumber *sessionID = [self sessionIDFromUUID:sessionInternal.uuid];
+        NSString *uuid = sessionInternal.uuid;
+        
+        session = [[MParticleSession alloc] init];
+        session.sessionID = sessionID;
+        session.UUID = uuid;
+    }
+    
+    return session;
+}
+
 #pragma mark Application notifications
 #if TARGET_OS_IOS == 1
 - (NSData *)pushNotificationToken {
@@ -679,25 +712,13 @@ NSString *const kMPStateKey = @"state";
     }
 }
 
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Wdeprecated-declarations"
-- (void)didReceiveLocalNotification:(UILocalNotification *)notification {
-#pragma clang diagnostic pop
-    if (![MPStateMachine isAppExtension]) {
-        NSDictionary *userInfo = [MPNotificationController dictionaryFromLocalNotification:notification];
-        if (userInfo && !self.proxiedAppDelegate) {
-            [[MParticle sharedInstance].appNotificationHandler receivedUserNotification:userInfo actionIdentifier:nil userNotificationMode:MPUserNotificationModeLocal];
-        }
-    }
-}
-
 - (void)didReceiveRemoteNotification:(NSDictionary *)userInfo {
     if (self.proxiedAppDelegate) {
         return;
     }
     
     if (![MPStateMachine isAppExtension]) {
-        [[MParticle sharedInstance].appNotificationHandler receivedUserNotification:userInfo actionIdentifier:nil userNotificationMode:MPUserNotificationModeRemote];
+        [[MParticle sharedInstance].appNotificationHandler didReceiveRemoteNotification:userInfo];
     }
 }
 
@@ -721,18 +742,6 @@ NSString *const kMPStateKey = @"state";
     }
 }
 
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Wdeprecated-declarations"
-- (void)handleActionWithIdentifier:(NSString *)identifier forLocalNotification:(UILocalNotification *)notification {
-#pragma clang diagnostic pop
-    if (![MPStateMachine isAppExtension]) {
-        NSDictionary *userInfo = [MPNotificationController dictionaryFromLocalNotification:notification];
-        if (userInfo && !self.proxiedAppDelegate) {
-            [[MParticle sharedInstance].appNotificationHandler receivedUserNotification:userInfo actionIdentifier:identifier userNotificationMode:MPUserNotificationModeLocal];
-        }
-    }
-}
-
 - (void)handleActionWithIdentifier:(NSString *)identifier forRemoteNotification:(NSDictionary *)userInfo {
     if (self.proxiedAppDelegate) {
         return;
@@ -740,6 +749,16 @@ NSString *const kMPStateKey = @"state";
     
     if (![MPStateMachine isAppExtension]) {
         [[MParticle sharedInstance].appNotificationHandler handleActionWithIdentifier:identifier forRemoteNotification:userInfo];
+    }
+}
+
+- (void)handleActionWithIdentifier:(nullable NSString *)identifier forRemoteNotification:(nullable NSDictionary *)userInfo withResponseInfo:(nonnull NSDictionary *)responseInfo {
+    if (self.proxiedAppDelegate) {
+        return;
+    }
+    
+    if (![MPStateMachine isAppExtension]) {
+        [[MParticle sharedInstance].appNotificationHandler handleActionWithIdentifier:identifier forRemoteNotification:userInfo withResponseInfo:responseInfo];
     }
 }
 #endif
@@ -768,6 +787,8 @@ NSString *const kMPStateKey = @"state";
     return [[MParticle sharedInstance].appNotificationHandler continueUserActivity:userActivity restorationHandler:restorationHandler];
 }
 
+
+
 - (void)reset {
     dispatch_sync(messageQueue, ^{
         [[MPIUserDefaults standardUserDefaults] resetDefaults];
@@ -791,12 +812,11 @@ NSString *const kMPStateKey = @"state";
                                   // Forwarding calls to kits
                                   dispatch_async(dispatch_get_main_queue(), ^{
                                       [[MParticle sharedInstance].kitContainer forwardSDKCall:@selector(beginTimedEvent:)
-                                                                                event:event
-                                                                          messageType:MPMessageTypeEvent
-                                                                             userInfo:nil
-                                                                           kitHandler:^(id<MPKitProtocol> kit, MPEvent *forwardEvent, MPKitExecStatus **execStatus) {
-                                                                               *execStatus = [kit beginTimedEvent:forwardEvent];
-                                                                           }];
+                                                                                        event:event
+                                                                                   parameters:nil
+                                                                                  messageType:MPMessageTypeEvent
+                                                                                     userInfo:nil
+                                       ];
                                   });
                               }
                           }];
@@ -812,22 +832,18 @@ NSString *const kMPStateKey = @"state";
                                dispatch_async(dispatch_get_main_queue(), ^{
                                    // Forwarding calls to kits
                                    [[MParticle sharedInstance].kitContainer forwardSDKCall:@selector(endTimedEvent:)
-                                                                             event:event
-                                                                       messageType:MPMessageTypeEvent
-                                                                          userInfo:nil
-                                                                        kitHandler:^(id<MPKitProtocol> kit, MPEvent *forwardEvent, MPKitExecStatus **execStatus) {
-                                                                            *execStatus = [kit endTimedEvent:forwardEvent];
-                                                                        }];
+                                                                                     event:event
+                                                                                parameters:nil
+                                                                               messageType:MPMessageTypeEvent
+                                                                                  userInfo:nil
+                                    ];
                                    
                                    [[MParticle sharedInstance].kitContainer forwardSDKCall:@selector(logEvent:)
-                                                                             event:event
-                                                                       messageType:MPMessageTypeEvent
-                                                                          userInfo:nil
-                                                                        kitHandler:^(id<MPKitProtocol> kit, MPEvent *forwardEvent, MPKitExecStatus **execStatus) {
-                                                                            if (![kit respondsToSelector:@selector(endTimedEvent:)]) {
-                                                                                *execStatus = [kit logEvent:forwardEvent];
-                                                                            }
-                                                                        }];
+                                                                                     event:event
+                                                                                parameters:nil
+                                                                               messageType:MPMessageTypeEvent
+                                                                                  userInfo:nil
+                                    ];
                                 });
                            }
                        }];
@@ -845,19 +861,17 @@ NSString *const kMPStateKey = @"state";
                        completionHandler:^(MPEvent *event, MPExecStatus execStatus) {
                            if (execStatus == MPExecStatusSuccess) {
                                MPILogDebug(@"Logged event: %@", event);
-                               
-                               // Forwarding calls to kits
-                               dispatch_async(dispatch_get_main_queue(), ^{
-                                   [[MParticle sharedInstance].kitContainer forwardSDKCall:@selector(logEvent:)
-                                                                             event:event
-                                                                       messageType:MPMessageTypeEvent
-                                                                          userInfo:nil
-                                                                        kitHandler:^(id<MPKitProtocol> kit, MPEvent *forwardEvent, MPKitExecStatus *__autoreleasing *execStatus) {
-                                                                            *execStatus = [kit logEvent:forwardEvent];
-                                                                        }];
-                               });
                            }
                        }];
+        // Forwarding calls to kits
+        dispatch_async(dispatch_get_main_queue(), ^{
+            [[MParticle sharedInstance].kitContainer forwardSDKCall:@selector(logEvent:)
+                                                              event:event
+                                                         parameters:nil
+                                                        messageType:MPMessageTypeEvent
+                                                           userInfo:nil
+             ];
+        });
     });
 }
 
@@ -885,12 +899,11 @@ NSString *const kMPStateKey = @"state";
                                 dispatch_async(dispatch_get_main_queue(), ^{
                                     // Forwarding calls to kits
                                     [[MParticle sharedInstance].kitContainer forwardSDKCall:@selector(logScreen:)
-                                                                              event:event
-                                                                        messageType:MPMessageTypeScreenView
-                                                                           userInfo:nil
-                                                                         kitHandler:^(id<MPKitProtocol> kit, MPEvent *forwardEvent, MPKitExecStatus **execStatus) {
-                                                                             *execStatus = [kit logScreen:forwardEvent];
-                                                                         }];
+                                                                                      event:event
+                                                                                 parameters:nil
+                                                                                messageType:MPMessageTypeScreenView
+                                                                                   userInfo:nil
+                                     ];
                                 });
                             }
                         }];
@@ -980,12 +993,11 @@ NSString *const kMPStateKey = @"state";
                                       dispatch_async(dispatch_get_main_queue(), ^{
                                           // Forwarding calls to kits
                                           [[MParticle sharedInstance].kitContainer forwardSDKCall:@selector(leaveBreadcrumb:)
-                                                                                    event:event
-                                                                              messageType:MPMessageTypeBreadcrumb
-                                                                                 userInfo:nil
-                                                                               kitHandler:^(id<MPKitProtocol> kit, MPEvent *forwardEvent, MPKitExecStatus *__autoreleasing *execStatus) {
-                                                                                   *execStatus = [kit leaveBreadcrumb:forwardEvent];
-                                                                               }];
+                                                                                            event:event
+                                                                                       parameters:nil
+                                                                                      messageType:MPMessageTypeBreadcrumb
+                                                                                         userInfo:nil
+                                           ];
                                       });
                                   }
                               }];
@@ -1012,15 +1024,11 @@ NSString *const kMPStateKey = @"state";
                                MPILogDebug(@"Logged error with message: %@", message);
                                
                                // Forwarding calls to kits
-                               dispatch_async(dispatch_get_main_queue(), ^{
-                                   [[MParticle sharedInstance].kitContainer forwardSDKCall:@selector(logError:eventInfo:)
-                                                                      errorMessage:message
-                                                                         exception:nil
-                                                                         eventInfo:eventInfo
-                                                                        kitHandler:^(id<MPKitProtocol> kit, MPKitExecStatus *__autoreleasing *execStatus) {
-                                                                            *execStatus = [kit logError:message eventInfo:eventInfo];
-                                                                        }];
-                               });
+                               MPForwardQueueParameters *queueParameters = [[MPForwardQueueParameters alloc] init];
+                               [queueParameters addParameter:message];
+                               [queueParameters addParameter:eventInfo];
+                               
+                               [[MParticle sharedInstance].kitContainer forwardSDKCall:@selector(logError:eventInfo:) event:nil parameters:queueParameters messageType:MPMessageTypeUnknown userInfo:nil];
                            }
                        }];
     });
@@ -1041,15 +1049,10 @@ NSString *const kMPStateKey = @"state";
                                MPILogDebug(@"Logged exception name: %@, reason: %@, topmost context: %@", message, exception.reason, topmostContext);
                                
                                // Forwarding calls to kits
-                               dispatch_async(dispatch_get_main_queue(), ^{
-                                   [[MParticle sharedInstance].kitContainer forwardSDKCall:@selector(logError:eventInfo:)
-                                                                      errorMessage:nil
-                                                                         exception:exception
-                                                                         eventInfo:nil
-                                                                        kitHandler:^(id<MPKitProtocol> kit, MPKitExecStatus *__autoreleasing *execStatus) {
-                                                                            *execStatus = [kit logException:exception];
-                                                                        }];
-                               });
+                               MPForwardQueueParameters *queueParameters = [[MPForwardQueueParameters alloc] init];
+                               [queueParameters addParameter:exception];
+                               
+                               [[MParticle sharedInstance].kitContainer forwardSDKCall:@selector(logException:) event:nil parameters:queueParameters messageType:MPMessageTypeUnknown userInfo:nil];
                            }
                        }];
     });
@@ -1065,33 +1068,13 @@ NSString *const kMPStateKey = @"state";
                                completionHandler:^(MPCommerceEvent *commerceEvent, MPExecStatus execStatus) {
                                    if (execStatus == MPExecStatusSuccess) {
                                        MPILogDebug(@"Logged commerce event: %@", commerceEvent);
-                                       
-                                       // Forwarding calls to kits
-                                       SEL logCommerceEventSelector = @selector(logCommerceEvent:);
-                                       SEL logEventSelector = @selector(logEvent:);
-                                       
-                                       [[MParticle sharedInstance].kitContainer forwardCommerceEventCall:commerceEvent
-                                                                                      kitHandler:^(id<MPKitProtocol> kit, MPKitFilter *kitFilter, MPKitExecStatus **execStatus) {
-                                                                                          if (kitFilter.forwardCommerceEvent) {
-                                                                                              if ([kit respondsToSelector:logCommerceEventSelector]) {
-                                                                                                  *execStatus = [kit logCommerceEvent:kitFilter.forwardCommerceEvent];
-                                                                                              } else if ([kit respondsToSelector:logEventSelector]) {
-                                                                                                  NSArray *expandedInstructions = [kitFilter.forwardCommerceEvent expandedInstructions];
-                                                                                                  
-                                                                                                  for (MPCommerceEventInstruction *commerceEventInstruction in expandedInstructions) {
-                                                                                                      [kit logEvent:commerceEventInstruction.event];
-                                                                                                  }
-                                                                                                  
-                                                                                                  *execStatus = [[MPKitExecStatus alloc] initWithSDKCode:[[kit class] kitCode] returnCode:MPKitReturnCodeSuccess];
-                                                                                              }
-                                                                                          }
-                                                                                          
-                                                                                          if (kitFilter.forwardEvent && [kit respondsToSelector:logEventSelector]) {
-                                                                                              *execStatus = [kit logEvent:kitFilter.forwardEvent];
-                                                                                          }
-                                                                                      }];
+                                   } else {
+                                       MPILogDebug(@"Failed to log commerce event: %@", commerceEvent);
                                    }
                                }];
+        
+        // Forwarding calls to kits        
+        [[MParticle sharedInstance].kitContainer forwardCommerceEventCall:commerceEvent];
     });
 }
 
@@ -1122,12 +1105,11 @@ NSString *const kMPStateKey = @"state";
                            dispatch_async(dispatch_get_main_queue(), ^{
                                // Forwarding calls to kits
                                [[MParticle sharedInstance].kitContainer forwardSDKCall:@selector(logLTVIncrease:event:)
-                                                                         event:nil
-                                                                   messageType:MPMessageTypeUnknown
-                                                                      userInfo:nil
-                                                                    kitHandler:^(id<MPKitProtocol> kit, MPEvent *forwardEvent, MPKitExecStatus **execStatus) {
-                                                                        *execStatus = [kit logLTVIncrease:increaseAmount event:forwardEvent];
-                                                                    }];
+                                                                                 event:nil
+                                                                            parameters:nil
+                                                                           messageType:MPMessageTypeUnknown
+                                                                              userInfo:nil
+                                ];
                             });
                        }
                    }];
@@ -1146,10 +1128,10 @@ NSString *const kMPStateKey = @"state";
 }
 
 #pragma mark Integration attributes
-- (nonnull MPKitExecStatus *)setIntegrationAttributes:(nonnull NSDictionary<NSString *, NSString *> *)attributes forKit:(nonnull NSNumber *)kitCode {
+- (nonnull MPKitExecStatus *)setIntegrationAttributes:(nonnull NSDictionary<NSString *, NSString *> *)attributes forKit:(nonnull NSNumber *)integrationId {
     __block MPKitReturnCode returnCode = MPKitReturnCodeSuccess;
 
-    MPIntegrationAttributes *integrationAttributes = [[MPIntegrationAttributes alloc] initWithKitCode:kitCode attributes:attributes];
+    MPIntegrationAttributes *integrationAttributes = [[MPIntegrationAttributes alloc] initWithIntegrationId:integrationId attributes:attributes];
     
     if (integrationAttributes) {
         dispatch_async(messageQueue, ^{
@@ -1160,22 +1142,19 @@ NSString *const kMPStateKey = @"state";
         returnCode = MPKitReturnCodeRequirementsNotMet;
     }
     
-    return [[MPKitExecStatus alloc] initWithSDKCode:kitCode returnCode:returnCode forwardCount:0];
+    return [[MPKitExecStatus alloc] initWithSDKCode:integrationId returnCode:returnCode forwardCount:0];
 }
 
-- (nonnull MPKitExecStatus *)clearIntegrationAttributesForKit:(nonnull NSNumber *)kitCode {
-    MPKitReturnCode returnCode = MPKitReturnCodeSuccess;
-    BOOL validKitCode = [MPKitInstanceValidator isValidKitCode:kitCode];
+- (nonnull MPKitExecStatus *)clearIntegrationAttributesForKit:(nonnull NSNumber *)integrationId {
+    dispatch_async(messageQueue, ^{
+        [[MParticle sharedInstance].persistenceController deleteIntegrationAttributesForIntegrationId:integrationId];
+    });
 
-    if (validKitCode) {
-        dispatch_async(messageQueue, ^{
-            [[MParticle sharedInstance].persistenceController deleteIntegrationAttributesForKitCode:kitCode];
-        });
-    } else {
-        returnCode = MPKitReturnCodeRequirementsNotMet;
-    }
+    return [[MPKitExecStatus alloc] initWithSDKCode:integrationId returnCode:MPKitReturnCodeSuccess forwardCount:0];
+}
 
-    return [[MPKitExecStatus alloc] initWithSDKCode:kitCode returnCode:returnCode forwardCount:0];
+- (nullable NSDictionary *)integrationAttributesForKit:(nonnull NSNumber *)integrationId {
+    return [[MParticle sharedInstance].persistenceController fetchIntegrationAttributesForId:integrationId];
 }
 
 #pragma mark Kits
@@ -1246,18 +1225,23 @@ NSString *const kMPStateKey = @"state";
 }
 
 - (void)setLocation:(CLLocation *)location {
-    [MParticle sharedInstance].stateMachine.location = location;
-    MPILogDebug(@"Set location %@", location);
+    if (![[MParticle sharedInstance].stateMachine.location isEqual:location]) {
+        [MParticle sharedInstance].stateMachine.location = location;
+        MPILogDebug(@"Set location %@", location);
+        
         dispatch_async(dispatch_get_main_queue(), ^{
-        // Forwarding calls to kits
-        [[MParticle sharedInstance].kitContainer forwardSDKCall:_cmd
-                                                  event:nil
-                                            messageType:MPMessageTypeEvent
-                                               userInfo:nil
-                                             kitHandler:^(id<MPKitProtocol> kit, MPEvent *forwardEvent, MPKitExecStatus **execStatus) {
-                                                 *execStatus = [kit setLocation:location];
-                                             }];
-    });
+            // Forwarding calls to kits
+            MPForwardQueueParameters *queueParameters = [[MPForwardQueueParameters alloc] init];
+            [queueParameters addParameter:location];
+            
+            [[MParticle sharedInstance].kitContainer forwardSDKCall:_cmd
+                                                              event:nil
+                                                         parameters:queueParameters
+                                                        messageType:MPMessageTypeEvent
+                                                           userInfo:nil
+             ];
+        });
+    }
 }
 
 - (void)beginLocationTracking:(CLLocationAccuracy)accuracy minDistance:(CLLocationDistance)distanceFilter {
@@ -1394,19 +1378,33 @@ NSString *const kMPStateKey = @"state";
 #pragma mark User Notifications
 #if TARGET_OS_IOS == 1 && __IPHONE_OS_VERSION_MAX_ALLOWED >= __IPHONE_10_0
 - (void)userNotificationCenter:(UNUserNotificationCenter *)center willPresentNotification:(UNNotification *)notification {
+    if (!notification.request.content.userInfo) {
+        return;
+    }
     [[MParticle sharedInstance].appNotificationHandler userNotificationCenter:center willPresentNotification:notification];
 }
 
 - (void)userNotificationCenter:(UNUserNotificationCenter *)center didReceiveNotificationResponse:(UNNotificationResponse *)response {
+    if (!response.notification.request.content.userInfo) {
+        return;
+    }
     [[MParticle sharedInstance].appNotificationHandler userNotificationCenter:center didReceiveNotificationResponse:response];
 }
 #endif
 
 #pragma mark Web Views
 #if TARGET_OS_IOS == 1
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated-declarations"
 // Updates isIOS flag in JS API to true via webview.
 - (void)initializeWebView:(UIWebView *)webView {
-    [webView stringByEvaluatingJavaScriptFromString:@"mParticle.isIOS = true;"];
+    [webView stringByEvaluatingJavaScriptFromString:@"window.mParticle = window.mParticle || {}; window.mParticle.isIOS = true;"];
+}
+#pragma clang diagnostic pop
+
+// Updates isIOS flag in JS API to true via webview.
+- (void)initializeWKWebView:(WKWebView *)webView {
+    [webView evaluateJavaScript:@"window.mParticle = window.mParticle || {}; window.mParticle.isIOS = true;" completionHandler:nil];
 }
 
 // A url is mParticle sdk url when it has prefix mp-sdk://
@@ -1414,7 +1412,7 @@ NSString *const kMPStateKey = @"state";
     return [[requestUrl scheme] isEqualToString:kMParticleWebViewSdkScheme];
 }
 
-// Process web log event that is raised in iOS hybrid apps that are using UIWebView
+// Process web log event that is raised in iOS hybrid apps that are using UIWebView or WKWebView
 - (void)processWebViewLogEvent:(NSURL *)requestUrl {
     if (![self isMParticleWebViewSdkUrl:requestUrl]) {
         return;
@@ -1423,7 +1421,7 @@ NSString *const kMPStateKey = @"state";
     @try {
         NSError *error = nil;
         NSString *hostPath = [requestUrl host];
-        NSString *paramStr = [[requestUrl pathComponents] objectAtIndex:1];
+        NSString *paramStr = [[requestUrl path] substringFromIndex:1];
         NSData *eventDataStr = [paramStr dataUsingEncoding:NSUTF8StringEncoding];
         NSDictionary *eventDictionary = [NSJSONSerialization JSONObjectWithData:eventDataStr options:kNilOptions error:&error];
         
@@ -1517,8 +1515,46 @@ NSString *const kMPStateKey = @"state";
             [self setSessionAttribute:eventDictionary[@"key"] value:eventDictionary[@"value"]];
         }
     } @catch (NSException *e) {
-        MPILogError(@"Exception processing UIWebView event: %@", e.reason)
+        MPILogError(@"Exception processing WebView event: %@", e.reason)
     }
+}
+
+#pragma mark - Manual Notification logging
+/**
+ Logs a Notification event for a notification that has been reviewed but not acted upon. This is a convenience method for manually logging Notification events; Set trackNotifications to false on MParticleOptions to disable automatic tracking of Notifications and only set Notification manually:
+ */
+- (void)logNotificationReceivedWithUserInfo:(nonnull NSDictionary *)userInfo {
+    if (userInfo == nil) {
+        return;
+    }
+    [self logNotificationWithUserInfo:userInfo behavior:MPUserNotificationBehaviorReceived];
+}
+
+/**
+ Logs a Notification event for a notification that has been reviewed and acted upon. This is a convenience method for manually logging Notification events; Set trackNotifications to false on MParticleOptions to disable automatic tracking of Notifications and only set Notification manually:
+ */
+- (void)logNotificationOpenedWithUserInfo:(nonnull NSDictionary *)userInfo {
+    if (userInfo == nil) {
+        return;
+    }
+    [self logNotificationWithUserInfo:userInfo behavior:MPUserNotificationBehaviorRead | MPUserNotificationBehaviorDirectOpen];
+}
+
+/**
+ Logs a Notification event. This is a convenience method for manually logging Notification events; Set trackNotifications to false on MParticleOptions to disable automatic tracking of Notifications and only submit Notification events manually:
+ */
+- (void)logNotificationWithUserInfo:(nonnull NSDictionary *)userInfo behavior:(MPUserNotificationBehavior)behavior {
+    UIApplicationState state = [MPApplication sharedUIApplication].applicationState;
+    
+    NSString *stateString = state == UIApplicationStateActive ? kMPPushNotificationStateForeground : kMPPushNotificationStateBackground;
+    
+    MParticleUserNotification *userNotification = [[MParticleUserNotification alloc] initWithDictionary:userInfo
+                                                                                       actionIdentifier:nil
+                                                                                                  state:stateString
+                                                                                               behavior:behavior
+                                                                                                   mode:MPUserNotificationModeRemote];
+    
+    [self.backendController logUserNotification:userNotification];
 }
 #endif
 

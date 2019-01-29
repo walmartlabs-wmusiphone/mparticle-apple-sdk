@@ -107,6 +107,7 @@ Kit | CocoaPods | Carthage
 [Appboy](https://github.com/mparticle-integrations/mparticle-apple-integration-appboy)                |  ✓ | ✓
 [Adobe](https://github.com/mparticle-integrations/mparticle-apple-integration-adobe)                  |  ✓ | ✓
 [AppsFlyer](https://github.com/mparticle-integrations/mparticle-apple-integration-appsflyer)          |  ✓ | ✓ 
+[Appsee](https://github.com/mparticle-integrations/mparticle-apple-integration-appsee)                |  ✓ |
 [Apptentive](https://github.com/mparticle-integrations/mparticle-apple-integration-apptentive)        |  ✓ | ✓ 
 [Apptimize](https://github.com/mparticle-integrations/mparticle-apple-integration-apptimize)          |  ✓ |   
 [Apteligent](https://github.com/mparticle-integrations/mparticle-apple-integration-apteligent)        |  ✓ |  
@@ -119,12 +120,15 @@ Kit | CocoaPods | Carthage
 [Kahuna](https://github.com/mparticle-integrations/mparticle-apple-integration-kahuna)                |  ✓ |  
 [Kochava](https://github.com/mparticle-integrations/mparticle-apple-integration-kochava)              |  ✓ |  
 [Leanplum](https://github.com/mparticle-integrations/mparticle-apple-integration-leanplum)            |  ✓ | ✓
-[Localytics](https://github.com/mparticle-integrations/mparticle-apple-integration-localytics)        |  ✓ |  
+[Localytics](https://github.com/mparticle-integrations/mparticle-apple-integration-localytics)        |  ✓ | ✓
+[Optimizely](https://github.com/mparticle-integrations/mparticle-apple-integration-optimizely)         |  ✓ | ✓
 [Primer](https://github.com/mparticle-integrations/mparticle-apple-integration-primer)                |  ✓ | ✓
 [Radar](https://github.com/mparticle-integrations/mparticle-apple-integration-radar)                  |  ✓ | ✓
+[Responsys](https://github.com/mparticle-integrations/mparticle-apple-integration-responsys)                |   |
 [Reveal Mobile](https://github.com/mparticle-integrations/mparticle-apple-integration-revealmobile)   |  ✓ |  
 [Singular](https://github.com/mparticle-integrations/mparticle-apple-integration-singular)            |  ✓ |  
 [Skyhook](https://github.com/mparticle-integrations/mparticle-apple-integration-skyhook)              |  ✓ |  
+[Taplytics](https://github.com/mparticle-integrations/mparticle-apple-integration-taplytics)          |  ✓ |
 [Tune](https://github.com/mparticle-integrations/mparticle-apple-integration-tune)                    |  ✓ | ✓
 [Urban Airship](https://github.com/mparticle-integrations/mparticle-apple-integration-urbanairship)   |  ✓ |  
 [Wootric](https://github.com/mparticle-integrations/mparticle-apple-integration-wootric)              |  ✓ |  

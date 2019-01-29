@@ -7,7 +7,6 @@
 #import "MPSegmentMembership.h"
 #import "MPIConstants.h"
 #import "MPMessageBuilder.h"
-#import "MParticleUserNotification.h"
 #import "MPIntegrationAttributes.h"
 #import "MPConsumerInfo.h"
 #import "MPForwardRecord.h"
@@ -39,7 +38,6 @@
     [super setUp];
     
     [MParticle sharedInstance].stateMachine = [[MPStateMachine alloc] init];
-
     [MParticle sharedInstance].persistenceController = [[MPPersistenceController alloc] init];
 }
 
@@ -128,7 +126,7 @@
     MPMessageBuilder *messageBuilder = [MPMessageBuilder newBuilderWithMessageType:MPMessageTypeEvent
                                                                            session:session
                                                                        messageInfo:@{@"MessageKey1":@"MessageValue1"}];
-    MPMessage *message = (MPMessage *)[messageBuilder build];
+    MPMessage *message = [messageBuilder build];
     [persistence saveMessage:message];
     
     XCTAssertTrue(message.messageId > 0, @"Message id not greater than zero: %lld", message.messageId);
@@ -163,7 +161,7 @@
     MPMessageBuilder *messageBuilder = [MPMessageBuilder newBuilderWithMessageType:MPMessageTypeEvent
                                                                            session:session
                                                                        messageInfo:@{@"MessageKey1":@"MessageValue1"}];
-    MPMessage *message = (MPMessage *)[messageBuilder build];
+    MPMessage *message = [messageBuilder build];
     [persistence saveMessage:message];
     
     XCTAssertTrue(message.messageId > 0, @"Message id not greater than zero: %lld", message.messageId);
@@ -193,7 +191,7 @@
     MPMessageBuilder *messageBuilder = [MPMessageBuilder newBuilderWithMessageType:MPMessageTypeEvent
                                                                            session:session
                                                                        messageInfo:@{@"MessageKey1":@"MessageValue1"}];
-    MPMessage *message = (MPMessage *)[messageBuilder build];
+    MPMessage *message = [messageBuilder build];
     
     NSDictionary *uploadDictionary = @{kMPOptOutKey:@NO,
                                        kMPSessionTimeoutKey:@120,
@@ -241,7 +239,7 @@
     MPMessageBuilder *messageBuilder = [MPMessageBuilder newBuilderWithMessageType:MPMessageTypeEvent
                                                                            session:session
                                                                        messageInfo:@{@"MessageKey1":@"MessageValue1"}];
-    MPMessage *message = (MPMessage *)[messageBuilder build];
+    MPMessage *message = [messageBuilder build];
     
     MPUploadBuilder *uploadBuilder = [[MPUploadBuilder alloc] initWithMpid:[MPPersistenceController mpId] sessionId:@(session.sessionId) messages:@[message] sessionTimeout:120 uploadInterval:10];
     
@@ -269,7 +267,7 @@
     
     MPMessageBuilder *messageBuilder = [MPMessageBuilder newBuilderWithMessageType:MPMessageTypeOptOut session:session messageInfo:@{kMPOptOutStatus:(@"true")}];
 
-    MPMessage *message = (MPMessage *)[messageBuilder build];
+    MPMessage *message = [messageBuilder build];
     
     MPUploadBuilder *uploadBuilder = [[MPUploadBuilder alloc] initWithMpid:[MPPersistenceController mpId] sessionId:@(session.sessionId) messages:@[message] sessionTimeout:120 uploadInterval:10];
     
@@ -341,48 +339,79 @@
         XCTAssertTrue(segments.count == 0, @"Segment is not being deleted.");
     }
 }
+- (void)testFetchIntegrationAttributesForKit {
+    NSNumber *integrationId = nil;
+    MPPersistenceController *persistence = [MParticle sharedInstance].persistenceController;
 
+    XCTAssertNil([persistence fetchIntegrationAttributesForId:integrationId]);
+    XCTAssertNil([persistence fetchIntegrationAttributesForId:@1000]);
+
+    MPIntegrationAttributes *integrationAttributes = [[MPIntegrationAttributes alloc] initWithIntegrationId:@1000
+                                                                                                  attributes:@{@"foo key 1":@"bar value 1",
+                                                                                                               @"foo key 2":@"bar value 2"
+                                                                                                               }];
+    [persistence saveIntegrationAttributes:integrationAttributes];
+    
+    integrationAttributes = [[MPIntegrationAttributes alloc] initWithIntegrationId:@2000
+                                                                                                 attributes:@{@"foo key 3":@"bar value 3",
+                                                                                                              @"foo key 4":@"bar value 4"
+                                                                                                              }];
+    [persistence saveIntegrationAttributes:integrationAttributes];
+    
+    NSDictionary *storedAttributes = [persistence fetchIntegrationAttributesForId:@1000];
+    XCTAssertNotNil(storedAttributes);
+    XCTAssertEqual(2, storedAttributes.count);
+    XCTAssertEqualObjects(@"bar value 1", [storedAttributes objectForKey:@"foo key 1"]);
+    XCTAssertEqualObjects(@"bar value 2", [storedAttributes objectForKey:@"foo key 2"]);
+    
+    storedAttributes = [persistence fetchIntegrationAttributesForId:@2000];
+    XCTAssertNotNil(storedAttributes);
+    XCTAssertEqual(2, storedAttributes.count);
+    XCTAssertEqualObjects(@"bar value 3", [storedAttributes objectForKey:@"foo key 3"]);
+    XCTAssertEqualObjects(@"bar value 4", [storedAttributes objectForKey:@"foo key 4"]);
+    
+}
 - (void)testIntegrationAttributes {
     MPPersistenceController *persistence = [MParticle sharedInstance].persistenceController;
-    [persistence deleteIntegrationAttributesForKitCode:@42];
+    [persistence deleteIntegrationAttributesForIntegrationId:@42];
     
-    NSNumber *kitCode = @(MPKitInstanceUrbanAirship);
+    NSNumber *integrationId = @(MPKitInstanceUrbanAirship);
     NSDictionary<NSString *, NSString *> *attributes = @{@"keyUA":@"valueUA"};
-    MPIntegrationAttributes *integrationAttributes1 = [[MPIntegrationAttributes alloc] initWithKitCode:kitCode attributes:attributes];
+    MPIntegrationAttributes *integrationAttributes1 = [[MPIntegrationAttributes alloc] initWithIntegrationId:integrationId attributes:attributes];
     [persistence saveIntegrationAttributes:integrationAttributes1];
     NSArray *integrationAttributesArray = [persistence fetchIntegrationAttributes];
     XCTAssertNotNil(integrationAttributesArray);
     XCTAssertEqual(integrationAttributesArray.count, 1);
     
-    kitCode = @(MPKitInstanceButton);
+    integrationId = @(MPKitInstanceButton);
     attributes = @{@"keyButton":@"valueButton"};
-    MPIntegrationAttributes *integrationAttributes2 = [[MPIntegrationAttributes alloc] initWithKitCode:kitCode attributes:attributes];
+    MPIntegrationAttributes *integrationAttributes2 = [[MPIntegrationAttributes alloc] initWithIntegrationId:integrationId attributes:attributes];
     [persistence saveIntegrationAttributes:integrationAttributes2];
     integrationAttributesArray = [persistence fetchIntegrationAttributes];
     XCTAssertNotNil(integrationAttributesArray);
     XCTAssertEqual(integrationAttributesArray.count, 2);
     
-    kitCode = @(MPKitInstanceButton);
+    integrationId = @(MPKitInstanceButton);
     attributes = @{@"keyButton2":@"valueButton2"};
-    integrationAttributes2 = [[MPIntegrationAttributes alloc] initWithKitCode:kitCode attributes:attributes];
+    integrationAttributes2 = [[MPIntegrationAttributes alloc] initWithIntegrationId:integrationId attributes:attributes];
     [persistence saveIntegrationAttributes:integrationAttributes2];
     integrationAttributesArray = [persistence fetchIntegrationAttributes];
     XCTAssertNotNil(integrationAttributesArray);
     XCTAssertEqual(integrationAttributesArray.count, 2);
     
-    [persistence deleteIntegrationAttributes:integrationAttributes2];
+    [persistence deleteIntegrationAttributesForIntegrationId:integrationId];
     integrationAttributesArray = [persistence fetchIntegrationAttributes];
     XCTAssertNotNil(integrationAttributesArray);
     XCTAssertEqual(integrationAttributesArray.count, 1);
     
-    kitCode = @(MPKitInstanceUrbanAirship);
-    [persistence deleteIntegrationAttributesForKitCode:kitCode];
+    integrationId = @(MPKitInstanceUrbanAirship);
+    [persistence deleteIntegrationAttributesForIntegrationId:integrationId];
     integrationAttributesArray = [persistence fetchIntegrationAttributes];
     XCTAssertNil(integrationAttributesArray);
     
-    kitCode = @(MPKitInstanceButton);
+    integrationId = @(MPKitInstanceButton);
     attributes = @{@"keyButton":@"valueButton"};
-    integrationAttributes2 = [[MPIntegrationAttributes alloc] initWithKitCode:kitCode attributes:attributes];
+    integrationAttributes2 = [[MPIntegrationAttributes alloc] initWithIntegrationId:integrationId attributes:attributes];
     [persistence saveIntegrationAttributes:integrationAttributes2];
     integrationAttributesArray = [persistence fetchIntegrationAttributes];
     XCTAssertNotNil(integrationAttributesArray);
@@ -483,6 +512,27 @@
     
     forwardRecords = [persistence fetchForwardRecords];
     XCTAssertNil(forwardRecords);
+}
+
+- (void)testTooLargeMessageSaving {
+    NSString *longString = @"a";
+    while (longString.length < 100001) {
+        longString = [NSString stringWithFormat:@"%@%@", longString, longString];
+    }
+    MPSession *session = [[MPSession alloc] initWithStartTime:[[NSDate date] timeIntervalSince1970] userId:[MPPersistenceController mpId]];
+    MPMessageBuilder *messageBuilder = [MPMessageBuilder newBuilderWithMessageType:MPMessageTypeEvent
+                                                                           session:session
+                                                                       messageInfo:@{@"MessageKey1":longString}];
+    MPMessage *message = [messageBuilder build];
+    
+    MPPersistenceController *persistence = [MParticle sharedInstance].persistenceController;
+    NSArray *messages = [persistence fetchMessagesInSession:session userId:[MPPersistenceController mpId]];
+    [persistence deleteMessages:messages];
+    
+    [persistence saveMessage:message];
+    messages = [persistence fetchMessagesInSession:session userId:[MPPersistenceController mpId]];
+    
+    XCTAssertEqual(messages.count, 0);
 }
 
 @end

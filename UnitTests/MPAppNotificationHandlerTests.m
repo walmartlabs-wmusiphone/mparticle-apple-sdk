@@ -3,9 +3,16 @@
 #import "MPPersistenceController.h"
 #import "mParticle.h"
 #import "MPBaseTestCase.h"
+#import "MPIConstants.h"
+#import "MPStateMachine.h"
+#if TARGET_OS_IOS == 1
+#import "OCMock.h"
+#endif
 
 @interface MParticle ()
 
++ (dispatch_queue_t)messageQueue;
+@property (nonatomic, strong) MPStateMachine *stateMachine;
 @property (nonatomic, strong, readonly) MPAppNotificationHandler *appNotificationHandler;
 @property (nonatomic, strong, readonly) MPPersistenceController *persistenceController;
 
@@ -14,13 +21,6 @@
 @interface MPAppNotificationHandlerTests : MPBaseTestCase
 
 @end
-
-@interface MPAppNotificationHandler(Tests)
-
-@property (nonatomic, unsafe_unretained) MPUserNotificationRunningMode runningMode;
-
-@end
-
 
 @implementation MPAppNotificationHandlerTests
 
@@ -105,22 +105,6 @@
     url = nil;
     options = nil;
     [appNotificationHandler openURL:url options:options];
-}
-
-- (void)testReceivedUserNotification {
-    MPAppNotificationHandler *appNotificationHandler = [MParticle sharedInstance].appNotificationHandler;
-    
-    NSDictionary *notification = @{};
-    NSString *action = @"";
-    [appNotificationHandler receivedUserNotification:notification actionIdentifier:action userNotificationMode:MPUserNotificationModeRemote];
-    [appNotificationHandler receivedUserNotification:notification actionIdentifier:action userNotificationMode:MPUserNotificationModeLocal];
-    [appNotificationHandler receivedUserNotification:notification actionIdentifier:action userNotificationMode:MPUserNotificationModeAutoDetect];
-    
-    notification = nil;
-    action = nil;
-    [appNotificationHandler receivedUserNotification:notification actionIdentifier:action userNotificationMode:MPUserNotificationModeRemote];
-    [appNotificationHandler receivedUserNotification:notification actionIdentifier:action userNotificationMode:MPUserNotificationModeLocal];
-    [appNotificationHandler receivedUserNotification:notification actionIdentifier:action userNotificationMode:MPUserNotificationModeAutoDetect];
 }
 
 @end

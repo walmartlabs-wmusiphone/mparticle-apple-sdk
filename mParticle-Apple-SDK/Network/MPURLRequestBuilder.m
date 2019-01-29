@@ -81,8 +81,8 @@ static NSString *mpUserAgent = nil;
     if (!mpUserAgent) {
         if (MParticle.sharedInstance.customUserAgent != nil) {
             mpUserAgent = MParticle.sharedInstance.customUserAgent;
-        } else if (MParticle.sharedInstance.collectUserAgent) {
 #if TARGET_OS_IOS == 1
+        } else if (MParticle.sharedInstance.collectUserAgent) {
             NSString *currentSystemVersion = [UIDevice currentDevice].systemVersion;
             NSString *savedSystemVersion = [MPIUserDefaults standardUserDefaults][kMPUserAgentSystemVersionUserDefaultsKey];
             if ([currentSystemVersion isEqualToString:savedSystemVersion]) {
@@ -102,7 +102,10 @@ static NSString *mpUserAgent = nil;
                 }
 
                 @try {
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated-declarations"
                     UIWebView *webView = [[UIWebView alloc] initWithFrame:CGRectZero];
+#pragma clang diagnostic pop
                     mpUserAgent = [webView stringByEvaluatingJavaScriptFromString:@"navigator.userAgent"];
                     NSString *systemVersion = [UIDevice currentDevice].systemVersion;
                     if (mpUserAgent && systemVersion) {

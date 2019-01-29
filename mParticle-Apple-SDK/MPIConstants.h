@@ -250,18 +250,17 @@ extern NSString * _Nonnull const kMPRemoteConfigUniqueIdentifierKey;
 extern NSString * _Nonnull const kMPRemoteConfigBracketKey;
 extern NSString * _Nonnull const kMPRemoteConfigRestrictIDFA;
 extern NSString * _Nonnull const kMPRemoteConfigAllowASR;
+extern NSString * _Nonnull const kMPRemoteConfigExcludeAnonymousUsersKey;
+
 
 // Notifications
 extern NSString * _Nonnull const kMPCrashReportOccurredNotification;
 extern NSString * _Nonnull const kMPConfigureExceptionHandlingNotification;
-extern NSString * _Nonnull const kMPRemoteNotificationReceivedNotification;
 extern NSString * _Nonnull const kMPUserNotificationDictionaryKey;
 extern NSString * _Nonnull const kMPUserNotificationActionKey;
 extern NSString * _Nonnull const kMPRemoteNotificationDeviceTokenNotification;
 extern NSString * _Nonnull const kMPRemoteNotificationDeviceTokenKey;
 extern NSString * _Nonnull const kMPRemoteNotificationOldDeviceTokenKey;
-extern NSString * _Nonnull const kMPLocalNotificationReceivedNotification;
-extern NSString * _Nonnull const kMPUserNotificationRunningModeKey;
 
 // Config.plist keys
 extern NSString * _Nonnull const kMPConfigPlist;
@@ -270,6 +269,7 @@ extern NSString * _Nonnull const kMPConfigSecret;
 extern NSString * _Nonnull const kMPConfigSharedGroupID;
 extern NSString * _Nonnull const kMPConfigCustomUserAgent;
 extern NSString * _Nonnull const kMPConfigCollectUserAgent;
+extern NSString * _Nonnull const kMPConfigTrackNotifications;
 extern NSString * _Nonnull const kMPConfigSessionTimeout;
 extern NSString * _Nonnull const kMPConfigUploadInterval;
 extern NSString * _Nonnull const kMPConfigEnableSSL;
@@ -381,15 +381,24 @@ extern const NSTimeInterval INITIAL_UPLOAD_TIME;
 extern const NSTimeInterval DEBUG_CONFIG_REQUESTS_QUIET_INTERVAL;
 extern const NSTimeInterval CONFIG_REQUESTS_QUIET_INTERVAL;
 
+// Search Ads timeout/retry
+extern const NSTimeInterval SEARCH_ADS_ATTRIBUTION_GLOBAL_TIMEOUT_SECONDS;
+extern const NSTimeInterval SEARCH_ADS_ATTRIBUTION_DELAY_BEFORE_RETRY;
+extern const NSInteger SEARCH_ADS_ATTRIBUTION_MAX_RETRIES;
+
 // Attributes limits
 extern const NSInteger LIMIT_ATTR_COUNT;
-extern const NSInteger LIMIT_ATTR_LENGTH;
-extern const NSInteger LIMIT_NAME;
-extern const NSInteger LIMIT_USER_ATTR_LENGTH;
+extern const NSInteger LIMIT_ATTR_KEY_LENGTH;
+extern const NSInteger LIMIT_ATTR_VALUE_LENGTH;
 extern const NSInteger MAX_USER_ATTR_LIST_SIZE;
 extern const NSInteger MAX_USER_ATTR_LIST_ENTRY_LENGTH;
 
 // Consent limits
 extern const NSInteger MAX_GDPR_CONSENT_PURPOSES;
+
+// Size limits
+extern const NSInteger MAX_BYTES_PER_EVENT;
+extern const NSInteger MAX_BYTES_PER_BATCH;
+extern const NSInteger MAX_EVENTS_PER_BATCH;
 
 #endif

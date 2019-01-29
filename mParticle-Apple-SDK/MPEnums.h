@@ -141,6 +141,8 @@ typedef NS_ENUM(NSUInteger, MPKitInstance) {
     MPKitInstanceKochava = 37,
     /** Kit code for comScore */
     MPKitInstanceComScore = 39,
+    /** Kit code for Optimizely */
+    MPKitInstanceOptimizely = 54,
     /** Kit code for Kahuna */
     MPKitInstanceKahuna = 56,
     /** Kit code for Nielsen */
@@ -171,6 +173,8 @@ typedef NS_ENUM(NSUInteger, MPKitInstance) {
     MPKitInstanceCarnival = 99,
     /** Kit code for Primer */
     MPKitInstancePrimer = 100,
+    /** Kit code for Responsys */
+    MPKitInstanceResponsys = 102,
     /** Kit code for Apptimize */
     MPKitInstanceApptimize = 105,
     /** Kit code for Reveal Mobile */
@@ -188,7 +192,13 @@ typedef NS_ENUM(NSUInteger, MPKitInstance) {
     /** Kit code for Adobe */
     MPKitInstanceAdobe = 124,
     /** Kit code for Instabot */
-    MPKitInstanceInstabot = 123
+    MPKitInstanceInstabot = 123,
+    /** Kit code for Appsee */
+    MPKitInstanceAppsee = 126,
+    /** Kit code for Taplytics */
+    MPKitInstanceTaplytics = 129,
+    /** Kit code for CleverTap */
+    MPKitInstanceCleverTap = 135
 };
 
 /// Log Levels
@@ -297,6 +307,12 @@ extern NSString * _Nonnull const mParticleSessionDidEndNotification;
  */
 extern NSString * _Nonnull const mParticleSessionId;
 
+/** This constant is used as key for the userInfo dictionary in the
+ mParticleSessionDidBeginNotification and mParticleSessionDidEndNotification notifications. The value
+ of this key is the UUID of the session.
+ */
+extern NSString * _Nonnull const mParticleSessionUUID;
+
 /** Posted immediately after the SDK becomes initialized.
  
  @discussion You can register to receive this notification using NSNotificationCenter. This notification is broadcast when the mParticle SDK successfully
@@ -365,6 +381,8 @@ extern NSString * _Nonnull const mParticleEmbeddedSDKDidBecomeInactiveNotificati
 extern NSString * _Nonnull const mParticleKitInstanceKey;
 extern NSString * _Nonnull const mParticleEmbeddedSDKInstanceKey;
 
+/** Posted immediately after the user's MPID changes (or in other terms when a different user becomes active).
+ */
 extern NSString * _Nonnull const mParticleIdentityStateChangeListenerNotification;
 extern NSString * _Nonnull const mParticleUserKey;
 extern NSString * _Nonnull const mParticleIdentityErrorDomain;

@@ -43,9 +43,18 @@ typedef NS_ENUM(NSUInteger, MPExecStatus) {
 };
 
 @interface MPBackendController : NSObject
-#if TARGET_OS_IOS == 1
-<MPNotificationControllerDelegate>
 
+extern const NSTimeInterval kMPRemainingBackgroundTimeMinimumThreshold;
+extern const NSInteger kNilAttributeValue;
+extern const NSInteger kEmptyAttributeValue;
+extern const NSInteger kExceededAttributeCountLimit;
+extern const NSInteger kExceededAttributeValueMaximumLength;
+extern const NSInteger kExceededAttributeKeyMaximumLength;
+extern const NSInteger kInvalidDataType;
+extern const NSTimeInterval kMPMaximumKitWaitTimeSeconds;
+extern const NSInteger kInvalidKey;
+
+#if TARGET_OS_IOS == 1
 @property (nonatomic, strong, nonnull) MPNotificationController *notificationController;
 #endif
 
@@ -60,7 +69,7 @@ typedef NS_ENUM(NSUInteger, MPExecStatus) {
 - (void)beginSession:(void (^ _Nullable)(MPSession * _Nullable session, MPSession * _Nullable previousSession, MPExecStatus execStatus))completionHandler;
 - (void)endSession;
 - (void)beginTimedEvent:(nonnull MPEvent *)event completionHandler:(void (^ _Nonnull)(MPEvent * _Nonnull event, MPExecStatus execStatus))completionHandler;
-- (BOOL)checkAttribute:(nonnull NSDictionary *)attributesDictionary key:(nonnull NSString *)key value:(nonnull id)value error:(out NSError *__autoreleasing _Nullable * _Nullable)error;
++ (void)checkAttribute:(nonnull NSDictionary *)attributesDictionary key:(nonnull NSString *)key value:(nonnull id)value error:(out NSError *__autoreleasing _Nullable * _Nullable)error;
 - (nullable MPEvent *)eventWithName:(nonnull NSString *)eventName;
 - (nullable NSString *)execStatusDescription:(MPExecStatus)execStatus;
 - (MPExecStatus)fetchSegments:(NSTimeInterval)timeout endpointId:(nullable NSString *)endpointId completionHandler:(void (^ _Nonnull)(NSArray * _Nullable segments, NSTimeInterval elapsedTime, NSError * _Nullable error))completionHandler;
@@ -88,7 +97,7 @@ typedef NS_ENUM(NSUInteger, MPExecStatus) {
 - (MPExecStatus)beginLocationTrackingWithAccuracy:(CLLocationAccuracy)accuracy distanceFilter:(CLLocationDistance)distance authorizationRequest:(MPLocationAuthorizationRequest)authorizationRequest;
 - (MPExecStatus)endLocationTracking;
 - (void)handleDeviceTokenNotification:(nonnull NSNotification *)notification;
-- (void)receivedUserNotification:(nonnull MParticleUserNotification *)userNotification;
+- (void)logUserNotification:(nonnull MParticleUserNotification *)userNotification;
 #endif
 
 @end

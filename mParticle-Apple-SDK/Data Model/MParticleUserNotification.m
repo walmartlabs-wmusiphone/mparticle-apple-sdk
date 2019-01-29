@@ -17,13 +17,12 @@ NSString *const kMPUserNotificationCategoryKey = @"category";
 
 @implementation MParticleUserNotification
 
-- (instancetype)initWithDictionary:(NSDictionary *)notificationDictionary actionIdentifier:(NSString *)actionIdentifier state:(NSString *)state behavior:(MPUserNotificationBehavior)behavior mode:(MPUserNotificationMode)mode runningMode:(MPUserNotificationRunningMode)runningMode {
+- (instancetype)initWithDictionary:(NSDictionary *)notificationDictionary actionIdentifier:(NSString *)actionIdentifier state:(NSString *)state behavior:(MPUserNotificationBehavior)behavior mode:(MPUserNotificationMode)mode {
     self = [super init];
     if (!self || !state) {
         return nil;
     }
     
-    _runningMode = runningMode;
     _shouldPersist = YES;
     
     if (mode == MPUserNotificationModeAutoDetect) {
@@ -214,7 +213,7 @@ NSString *const kMPUserNotificationCategoryKey = @"category";
     return redactedNotificationString;
 }
 
-#pragma mark NSCoding
+#pragma mark NSSecureCoding
 - (void)encodeWithCoder:(NSCoder *)coder {
     [coder encodeObject:_receiptTime forKey:@"receiptTime"];
     [coder encodeObject:_state forKey:@"state"];
@@ -223,7 +222,6 @@ NSString *const kMPUserNotificationCategoryKey = @"category";
     [coder encodeInt64:_userNotificationId forKey:@"userNotificationId"];
     [coder encodeInteger:_behavior forKey:@"behavior"];
     [coder encodeInteger:_mode forKey:@"mode"];
-    [coder encodeInteger:_runningMode forKey:@"runningMode"];
     
     if (_redactedUserNotificationString) {
         [coder encodeObject:_redactedUserNotificationString forKey:@"redactedUserNotificationString"];
@@ -257,21 +255,20 @@ NSString *const kMPUserNotificationCategoryKey = @"category";
     }
     
     _shouldPersist = YES;
-    _receiptTime = [coder decodeObjectForKey:@"receiptTime"];
-    _state = [coder decodeObjectForKey:@"state"];
-    _type = [coder decodeObjectForKey:@"type"];
-    _uuid = [coder decodeObjectForKey:@"uuid"];
+    _receiptTime = [coder decodeObjectOfClass:[NSDate class] forKey:@"receiptTime"];
+    _state = [coder decodeObjectOfClass:[NSString class] forKey:@"state"];
+    _type = [coder decodeObjectOfClass:[NSString class] forKey:@"type"];
+    _uuid = [coder decodeObjectOfClass:[NSString class] forKey:@"uuid"];
     _userNotificationId = [coder decodeInt64ForKey:@"userNotificationId"];
     _behavior = [coder decodeIntegerForKey:@"behavior"];
     _mode = [coder decodeIntegerForKey:@"mode"];
-    _runningMode = [coder decodeIntegerForKey:@"runningMode"];
     
-    id object = [coder decodeObjectForKey:@"categoryIdentifier"];
+    id object = [coder decodeObjectOfClass:[NSString class] forKey:@"categoryIdentifier"];
     if (object) {
         _categoryIdentifier = (NSString *)object;
     }
     
-    object = [coder decodeObjectForKey:@"redactedUserNotificationString"];
+    object = [coder decodeObjectOfClass:[NSString class] forKey:@"redactedUserNotificationString"];
     if (object) {
         _redactedUserNotificationString = (NSString *)object;
     }
@@ -297,6 +294,10 @@ NSString *const kMPUserNotificationCategoryKey = @"category";
     }
     
     return self;
+}
+
++ (BOOL)supportsSecureCoding {
+    return YES;
 }
 
 @end
