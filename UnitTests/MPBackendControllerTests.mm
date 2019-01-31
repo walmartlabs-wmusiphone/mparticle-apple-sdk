@@ -15,7 +15,6 @@
 #import "mParticle.h"
 #import "MPKitContainer.h"
 #import "MPKitConfiguration.h"
-#import "MPKitInstanceValidator.h"
 #import "MPResponseConfig.h"
 #import "MPExceptionHandler.h"
 #import "MPBaseTestCase.h"
@@ -49,13 +48,6 @@
 @interface MPKitContainer(Tests)
 
 - (id<MPKitProtocol>)startKit:(NSNumber *)integrationId configuration:(MPKitConfiguration *)kitConfiguration;
-
-@end
-
-#pragma mark - MPKitInstanceValidator category for unit tests
-@interface MPKitInstanceValidator(BackendControllerTests)
-
-+ (void)includeUnitTestKits:(NSArray<NSNumber *> *)integrationIds;
 
 @end
 
@@ -316,9 +308,10 @@
 
 - (void)testCheckAttributeValueEmpty {
     NSError *error = nil;
-    [MPBackendController checkAttribute:[NSDictionary dictionary] key:@"foo"
+    BOOL success = [MPBackendController checkAttribute:[NSDictionary dictionary] key:@"foo"
                                      value:@"  "
                                      error:&error];
+    XCTAssertFalse(success);
     XCTAssertNotNil(error);
     XCTAssertEqual(kEmptyAttributeValue, error.code);
     
@@ -332,20 +325,23 @@
 
 - (void)testCheckAttributeStringAttribute {
     NSError *error = nil;
-    [MPBackendController checkAttribute:[NSDictionary dictionary] key:@"foo" value:@"bar" error:&error];
+    BOOL success = [MPBackendController checkAttribute:[NSDictionary dictionary] key:@"foo" value:@"bar" error:&error];
+    XCTAssert(success);
     XCTAssertNil(error);
 }
 
 - (void)testCheckAttributeNumberAttribute {
     NSError *error = nil;
-    [MPBackendController checkAttribute:[NSDictionary dictionary] key:@"foo" value:@123.0 error:&error];
+    BOOL success = [MPBackendController checkAttribute:[NSDictionary dictionary] key:@"foo" value:@123.0 error:&error];
+    XCTAssert(success);
     XCTAssertNil(error);
 }
 
 - (void)testCheckAttributeArrayAttribute {
     NSError *error = nil;
     NSArray *arrayValue = @[ @"foo", @"bar"];
-    [MPBackendController checkAttribute:[NSDictionary dictionary] key:@"foo" value:arrayValue error:&error];
+    BOOL success = [MPBackendController checkAttribute:[NSDictionary dictionary] key:@"foo" value:arrayValue error:&error];
+    XCTAssert(success);
     XCTAssertNil(error);
 }
 
@@ -354,7 +350,8 @@
     id mockValue = [OCMockObject mockForClass:[NSString class]];
     OCMStub([mockValue length]).andReturn(LIMIT_ATTR_VALUE_LENGTH);
     NSArray *arrayValue = @[@"foo", mockValue];
-    [MPBackendController checkAttribute:[NSDictionary dictionary] key:@"foo" value:arrayValue error:&error];
+    BOOL success = [MPBackendController checkAttribute:[NSDictionary dictionary] key:@"foo" value:arrayValue error:&error];
+    XCTAssertFalse(success);
     XCTAssertNotNil(error);
     XCTAssertEqual(kExceededAttributeValueMaximumLength, error.code);
 }
@@ -364,7 +361,8 @@
     id mockValue = [OCMockObject mockForClass:[NSString class]];
     OCMStub([mockValue length]).andReturn(LIMIT_ATTR_VALUE_LENGTH);
     NSArray *arrayValue = @[@"foo", @10.0];
-    [MPBackendController checkAttribute:[NSDictionary dictionary] key:@"foo" value:arrayValue error:&error];
+    BOOL success = [MPBackendController checkAttribute:[NSDictionary dictionary] key:@"foo" value:arrayValue error:&error];
+    XCTAssertFalse(success);
     XCTAssertNotNil(error);
     XCTAssertEqual(kInvalidDataType, error.code);
 }
@@ -374,7 +372,8 @@
     id mockAttributes = [OCMockObject mockForClass:[NSMutableDictionary class]];
     OCMStub([mockAttributes count]).andReturn(LIMIT_ATTR_COUNT);
     NSError *error = nil;
-    [MPBackendController checkAttribute:mockAttributes key:@"foo" value:@"bar" error:&error];
+    BOOL success = [MPBackendController checkAttribute:mockAttributes key:@"foo" value:@"bar" error:&error];
+    XCTAssertFalse(success);
     XCTAssertNotNil(error);
     XCTAssertEqual(kExceededAttributeCountLimit, error.code);
 }
@@ -384,7 +383,8 @@
     OCMStub([mockKey length]).andReturn(LIMIT_ATTR_KEY_LENGTH+1);
     
     NSError *error = nil;
-    [MPBackendController checkAttribute:[NSDictionary dictionary] key:mockKey value:@"foo" error:&error];
+    BOOL success = [MPBackendController checkAttribute:[NSDictionary dictionary] key:mockKey value:@"foo" error:&error];
+    XCTAssertFalse(success);
     XCTAssertNotNil(error);
     XCTAssertEqual(kExceededAttributeKeyMaximumLength, error.code);
 }
@@ -394,7 +394,8 @@
     OCMStub([mockValue length]).andReturn(LIMIT_ATTR_VALUE_LENGTH+1);
     OCMStub([mockValue stringByTrimmingCharactersInSet:OCMOCK_ANY]).andReturn(@"foo");
     NSError *error = nil;
-    [MPBackendController checkAttribute:[NSDictionary dictionary] key:@"foo" value:mockValue error:&error];
+    BOOL success = [MPBackendController checkAttribute:[NSDictionary dictionary] key:@"foo" value:mockValue error:&error];
+    XCTAssertFalse(success);
     XCTAssertNotNil(error);
     XCTAssertEqual(kExceededAttributeValueMaximumLength, error.code);
 }
@@ -402,7 +403,8 @@
 - (void)testCheckAttributeValueNil {
     NSError *error = nil;
     NSString *nilValue = nil;
-    [MPBackendController checkAttribute:[NSDictionary dictionary] key:@"foo" value:nilValue error:&error];
+    BOOL success = [MPBackendController checkAttribute:[NSDictionary dictionary] key:@"foo" value:nilValue error:&error];
+    XCTAssertFalse(success);
     XCTAssertNotNil(error);
     XCTAssertEqual(kNilAttributeValue, error.code);
 }
@@ -410,13 +412,15 @@
 - (void)testCheckAttributeKeyNullNil {
     NSError *error = nil;
     NSString *nilKey = (NSString*)[NSNull null];
-    [MPBackendController checkAttribute:[NSDictionary dictionary] key:nilKey value:@"foo" error:&error];
+    BOOL success = [MPBackendController checkAttribute:[NSDictionary dictionary] key:nilKey value:@"foo" error:&error];
+    XCTAssertFalse(success);
     XCTAssertNotNil(error);
     XCTAssertEqual(kInvalidKey, error.code);
     
     error = nil;
     nilKey = nil;
-    [MPBackendController checkAttribute:[NSDictionary dictionary] key:nilKey value:@"foo" error:&error];
+    success = [MPBackendController checkAttribute:[NSDictionary dictionary] key:nilKey value:@"foo" error:&error];
+    XCTAssertFalse(success);
     XCTAssertNotNil(error);
     XCTAssertEqual(kInvalidKey, error.code);
 }
@@ -764,9 +768,7 @@
 
 }
 
-- (void)testSetUserAttributeKits {
-    [MPKitInstanceValidator includeUnitTestKits:@[@42, @314]];
-    
+- (void)testSetUserAttributeKits {    
     if (![MPKitContainer registeredKits]) {
         MPKitRegister *kitRegister = [[MPKitRegister alloc] initWithName:@"KitTest" className:@"MPKitTestClassNoStartImmediately"];
         [MPKitContainer registerKit:kitRegister];
