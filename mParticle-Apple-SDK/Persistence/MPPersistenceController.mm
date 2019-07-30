@@ -812,6 +812,9 @@ const int MaxBreadcrumbs = 50;
 }
 
 - (void)deleteUpload:(MPUpload *)upload {
+    if (!upload) {
+        return;
+    }
     [self deleteUploadId:upload.uploadId];
 }
 
@@ -1330,7 +1333,7 @@ const int MaxBreadcrumbs = 50;
     sqlite3_stmt *preparedStatement;
     string sqlStatement;
     
-    sqlStatement = "SELECT _id, uuid, message_data, timestamp, session_id FROM uploads";
+    sqlStatement = "SELECT _id, uuid, message_data, timestamp, session_id FROM uploads ORDER BY timestamp, _id LIMIT 100";
     
     vector<MPUpload *> uploadsVector;
     
@@ -1446,16 +1449,13 @@ const int MaxBreadcrumbs = 50;
     return databaseOpen;
 }
 
-- (void)saveBreadcrumb:(MPMessage *)message session:(MPSession *)session {
-    // Save message
-    [self saveMessage:message];
-    
+- (void)saveBreadcrumb:(MPMessage *)message {
     // Save breadcrumb
     sqlite3_stmt *preparedStatement;
     string sqlStatement = "INSERT INTO breadcrumbs (session_uuid, uuid, timestamp, breadcrumb_data, session_number, mpid) VALUES (?, ?, ?, ?, ?, ?)";
     
     if (sqlite3_prepare_v2(mParticleDB, sqlStatement.c_str(), (int)sqlStatement.size(), &preparedStatement, NULL) == SQLITE_OK) {
-        string auxString = string([session.uuid UTF8String]);
+        string auxString = string(""); // not used
         sqlite3_bind_text(preparedStatement, 1, auxString.c_str(), (int)auxString.size(), SQLITE_TRANSIENT);
         
         auxString = string([message.uuid UTF8String]);
@@ -1635,7 +1635,7 @@ const int MaxBreadcrumbs = 50;
         string auxString = string([message.messageType UTF8String]);
         sqlite3_bind_text(preparedStatement, 1, auxString.c_str(), (int)auxString.size(), SQLITE_TRANSIENT);
         
-        if (message.sessionId != nil && MParticle.sharedInstance.automaticSessionTracking) {
+        if (message.sessionId != nil) {
             sqlite3_bind_int64(preparedStatement, 2, message.sessionId.longLongValue);
         } else {
             sqlite3_bind_null(preparedStatement, 2);

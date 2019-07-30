@@ -51,7 +51,6 @@
 - (BOOL)isDisabledByBracketConfiguration:(NSDictionary *)bracketConfiguration;
 - (BOOL)isDisabledByConsentKitFilter:(MPConsentKitFilter *)kitFilter;
 - (void)replayQueuedItems;
-- (NSDictionary *)validateAndTransformToSafeConfiguration:(NSDictionary *)configuration;
 - (id)transformValue:(NSString *)originalValue dataType:(MPDataType)dataType;
 - (void)handleApplicationDidBecomeActive:(NSNotification *)notification;
 - (void)handleApplicationDidFinishLaunching:(NSNotification *)notification;
@@ -294,31 +293,6 @@
     
     bracketConfig = @{@"hi":@(100),@"lo":@(0)};
     XCTAssertFalse([kitContainer isDisabledByBracketConfiguration:bracketConfig]);    
-}
-
-- (void)testConfigurationValidation {
-    NSDictionary *configuration = @{@"appKey":@"3141592"};
-    
-    NSDictionary *validatedConfiguration = [kitContainer validateAndTransformToSafeConfiguration:configuration];
-    XCTAssertEqual(configuration, validatedConfiguration, @"Should have been equal.");
-    
-    configuration = @{@"appKey":@"3141592",
-                      @"NullKey":[NSNull null]};
-    validatedConfiguration = [kitContainer validateAndTransformToSafeConfiguration:configuration];
-    XCTAssertNil(validatedConfiguration[@"NullKey"], @"Should have been nil.");
-    XCTAssertEqual(validatedConfiguration.count, 1, @"Incorrect count.");
-    
-    configuration = @{@"NullKey":[NSNull null]};
-    validatedConfiguration = [kitContainer validateAndTransformToSafeConfiguration:configuration];
-    XCTAssertNil(validatedConfiguration, @"Should have been nil.");
-    
-    configuration = @{};
-    validatedConfiguration = [kitContainer validateAndTransformToSafeConfiguration:configuration];
-    XCTAssertNil(validatedConfiguration, @"Should have been nil.");
-    
-    configuration = nil;
-    validatedConfiguration = [kitContainer validateAndTransformToSafeConfiguration:configuration];
-    XCTAssertNil(validatedConfiguration, @"Should have been nil.");
 }
 
 - (void)testValueTransformation {
@@ -2065,6 +2039,30 @@
     
 }
 
+- (void)testInitializeKitsWhenNilSupportedKits {
+    MPKitContainer *kitContainer = [[MPKitContainer alloc] init];
+    MPKitContainer *mockKitContainer = OCMPartialMock(kitContainer);
+    [[[(id)mockKitContainer stub] andReturn:nil] supportedKits];
+    [mockKitContainer initializeKits];
+    XCTAssertTrue(mockKitContainer.kitsInitialized);
+}
+
+- (void)testInitializeKitsWhenEmptySupportedKits {
+    MPKitContainer *kitContainer = [[MPKitContainer alloc] init];
+    MPKitContainer *mockKitContainer = OCMPartialMock(kitContainer);
+    [[[(id)mockKitContainer stub] andReturn: @[] ] supportedKits];
+    [mockKitContainer initializeKits];
+    XCTAssertTrue(mockKitContainer.kitsInitialized);
+}
+
+- (void)testInitializeKitsWhenNonemptySupportedKits {
+    MPKitContainer *kitContainer = [[MPKitContainer alloc] init];
+    MPKitContainer *mockKitContainer = OCMPartialMock(kitContainer);
+    [[[(id)mockKitContainer stub] andReturn: @[@123] ] supportedKits];
+    [mockKitContainer initializeKits];
+    XCTAssertFalse(mockKitContainer.kitsInitialized);
+}
+
 #if TARGET_OS_IOS == 1
 - (void)testAttemptToLogEventToKit {
     MPKitContainer *localKitContainer = [[MPKitContainer alloc] init];
@@ -2082,6 +2080,88 @@
 
     [localKitContainer attemptToLogEventToKit:kitRegister kitFilter:kitFilter selector:@selector(logEvent:) parameters:nil messageType:MPMessageTypeEvent userInfo:[[NSDictionary alloc] init]];
     
+    [kitWrapperMock verifyWithDelay:5.0];
+    [kitWrapperMock stopMocking];
+    [kitRegisterMock stopMocking];
+}
+
+- (void)testAttemptToLegacyOpenURLToKit {
+    MPKitContainer *localKitContainer = [[MPKitContainer alloc] init];
+    SEL selector = @selector(openURL:sourceApplication:annotation:);
+    
+    MPKitRegister *kitRegister = [[MPKitRegister alloc] initWithName:@"AppsFlyer" className:@"MPKitAppsFlyerTest"];
+    id kitWrapperMock = OCMProtocolMock(@protocol(MPKitProtocol));
+    id kitRegisterMock = OCMPartialMock(kitRegister);
+    OCMStub([kitRegisterMock wrapperInstance]).andReturn(kitWrapperMock);
+    MPKitFilter *kitFilter = [kitContainer filter:kitRegisterMock forSelector:selector];
+    
+    [(id <MPKitProtocol>)[kitWrapperMock expect] openURL:OCMOCK_ANY sourceApplication:OCMOCK_ANY annotation:OCMOCK_ANY];
+    
+    NSArray *parameters = @[
+                            [NSURL URLWithString:@"https://www.example.com"],
+                            @"test-source-application-1",
+                            @{@"test-annotation-key-1":@"test-annotation-value-1"}
+                            ];
+    MPForwardQueueParameters *queueParameters = [[MPForwardQueueParameters alloc] initWithParameters:parameters];
+    [localKitContainer attemptToLogEventToKit:kitRegisterMock kitFilter:kitFilter selector:selector parameters:queueParameters messageType:MPMessageTypeUnknown userInfo:nil];
+    [kitWrapperMock verifyWithDelay:5.0];
+    [kitWrapperMock stopMocking];
+    [kitRegisterMock stopMocking];
+}
+
+- (void)testAttemptToOpenURLToKit {
+    MPKitContainer *localKitContainer = [[MPKitContainer alloc] init];
+    SEL selector = @selector(openURL:options:);
+    
+    MPKitRegister *kitRegister = [[MPKitRegister alloc] initWithName:@"AppsFlyer" className:@"MPKitAppsFlyerTest"];
+    id kitWrapperMock = OCMProtocolMock(@protocol(MPKitProtocol));
+    id kitRegisterMock = OCMPartialMock(kitRegister);
+    OCMStub([kitRegisterMock wrapperInstance]).andReturn(kitWrapperMock);
+    MPKitFilter *kitFilter = [kitContainer filter:kitRegisterMock forSelector:selector];
+    
+    [(id <MPKitProtocol>)[kitWrapperMock expect] openURL:OCMOCK_ANY options:OCMOCK_ANY];
+    
+    MPForwardQueueParameters *queueParameters = nil;
+    if (@available(iOS 9.0, *)) {
+        NSArray *parameters = @[
+                                [NSURL URLWithString:@"https://www.example.com"],
+                                @{
+                                    UIApplicationOpenURLOptionsSourceApplicationKey:@"test-source-application-1",
+                                    UIApplicationOpenURLOptionsAnnotationKey:@{@"test-annotation-key-1": @"test-annotation-value-1"}
+                                    }
+                                ];
+        queueParameters = [[MPForwardQueueParameters alloc] initWithParameters:parameters];
+    }
+    
+    [localKitContainer attemptToLogEventToKit:kitRegisterMock kitFilter:kitFilter selector:selector parameters:queueParameters messageType:MPMessageTypeUnknown userInfo:nil];
+    [kitWrapperMock verifyWithDelay:5.0];
+    [kitWrapperMock stopMocking];
+    [kitRegisterMock stopMocking];
+}
+
+- (void)testAttemptToContinueUserActivityToKit {
+    MPKitContainer *localKitContainer = [[MPKitContainer alloc] init];
+    SEL selector = @selector(continueUserActivity:restorationHandler:);
+    
+    MPKitRegister *kitRegister = [[MPKitRegister alloc] initWithName:@"AppsFlyer" className:@"MPKitAppsFlyerTest"];
+    id kitWrapperMock = OCMProtocolMock(@protocol(MPKitProtocol));
+    id kitRegisterMock = OCMPartialMock(kitRegister);
+    OCMStub([kitRegisterMock wrapperInstance]).andReturn(kitWrapperMock);
+    MPKitFilter *kitFilter = [kitContainer filter:kitRegisterMock forSelector:selector];
+    
+    [(id <MPKitProtocol>)[kitWrapperMock expect] continueUserActivity:OCMOCK_ANY restorationHandler:OCMOCK_ANY];
+    
+    NSUserActivity *userActivity = [[NSUserActivity alloc] initWithActivityType:@"test-activity-type-1"];
+    userActivity.webpageURL = [NSURL URLWithString:@"https://www.example.com"];
+    void(^restorationHandler)(NSArray * restorableObjects) = ^(NSArray * restorableObjects) {
+        
+    };
+    NSArray *parameters = @[
+                            userActivity,
+                            restorationHandler
+                            ];
+    MPForwardQueueParameters *queueParameters = [[MPForwardQueueParameters alloc] initWithParameters:parameters];
+    [localKitContainer attemptToLogEventToKit:kitRegisterMock kitFilter:kitFilter selector:selector parameters:queueParameters messageType:MPMessageTypeUnknown userInfo:nil];
     [kitWrapperMock verifyWithDelay:5.0];
     [kitWrapperMock stopMocking];
     [kitRegisterMock stopMocking];

@@ -1,6 +1,6 @@
 Pod::Spec.new do |s|
     s.name             = "mParticle-Apple-SDK"
-    s.version          = "7.8.4"
+    s.version          = "7.9.2"
     s.summary          = "mParticle Apple SDK."
 
     s.description      = <<-DESC
@@ -20,7 +20,7 @@ Pod::Spec.new do |s|
     s.author            = { "mParticle" => "support@mparticle.com" }
     s.source            = { :git => "https://github.com/mParticle/mparticle-apple-sdk.git", :tag => s.version.to_s }
     s.documentation_url = "https://docs.mparticle.com/developers/sdk/ios/"
-    s.social_media_url  = "https://twitter.com/mparticles"
+    s.social_media_url  = "https://twitter.com/mparticle"
     s.requires_arc      = true
     s.default_subspec   = 'mParticle'
     s.module_name       = "mParticle_Apple_SDK"
@@ -66,9 +66,6 @@ Pod::Spec.new do |s|
         ext.ios.weak_frameworks  = 'iAd', 'UserNotifications'
 
         ext.tvos.frameworks      = 'AdSupport', 'CoreGraphics', 'Foundation', 'Security', 'SystemConfiguration', 'UIKit'
-
-	# For app extensions, disabling code paths using unavailable API
-	ext.pod_target_xcconfig = { 'GCC_PREPROCESSOR_DEFINITIONS' => 'MPARTICLE_APP_EXTENSIONS=1' }
     end
 end
 
