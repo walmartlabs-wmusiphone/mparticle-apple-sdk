@@ -1,5 +1,88 @@
 # mParticle Apple SDK CHANGELOG
 
+## 7.9.2
+
+## Core
+
+- Fix legacy openURL method forwarding to kits
+- Fix static code analytics warnings
+
+## Kits
+
+- None
+
+## 7.9.1
+
+## Core
+
+- None
+
+## Kits
+
+### Pilgrim kit
+
+We've released an integration with Foursquare Pilgrim! Docs will be published soon--in the meantime you can check out the [source code here](https://github.com/mparticle-integrations/mparticle-apple-integration-pilgrim).
+
+### OneTrust kit
+
+We have also released an integration with OneTrust! Check out the [docs here](https://docs.mparticle.com/integrations/onetrust/event/) and the [source code here](https://github.com/mparticle-integrations/mparticle-apple-integration-onetrust).
+
+- Leanplum - Add device id setting
+- Optimizely - Update Optimizely SDK to 3.0
+
+## 7.9.0
+
+## Core
+
+### Session tracking update
+
+This release updates the mechanism whereby the SDK tracks user sessions.
+
+Previously the SDK would start a session whenever an event was received, even if the event was triggered when processing a background push or location update.
+
+The SDK now measures sessions based on user engagement i.e. when the app is in the foreground and visible to the user.
+
+In the past the SDK would make special accommodations for apps that have long running background sessions due to use of location or background audio, in that sessions would continue even when the app remained in the background for an extended period of time. As of this release, this behavior has changed so that the session ends when the app is backgrounded even if, for example, background audio is still playing.
+
+We have also introduced new APIs to manually begin and end sessions, so that you may customize this behavior if necessary.
+
+Finally, this release also addresses an issue where session end messages may not have been created after the app was forcibly killed.
+
+- Update kit configuration validation
+- Update Modify API Response
+- Cleanup unused macros and update setting for extensions
+
+## Kits
+
+- Appboy - Update configuration error checking
+- Clevertap - Update CleverTap SDK to 3.4.1
+- Iterable - Fix crash if no webpage URL from continueUserActivity
+- UrbanAirship - Update UrbanAirship SDK to 10.1
+
+## 7.8.6
+
+## Core
+
+- Add new webview bridge support
+- Fix kit queue log messages when no kits included
+- Fix potential crash when uploading a large backlog of messages
+
+## Kits
+
+- Optimizely - Update data file interval key
+
+## 7.8.5
+
+## Core
+
+- None
+
+## Kits
+
+### Google Analytics for Firebase Kit
+
+We've released an integration with Google Analytics for Firebase! Check out the [docs here](https://docs.mparticle.com/integrations/firebase/event/) and the [source code here](https://github.com/mparticle-integrations/mparticle-apple-integration-google-analytics-firebase).
+
 ## 7.8.4
 
 ## Core

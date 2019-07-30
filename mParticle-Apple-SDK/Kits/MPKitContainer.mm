@@ -35,6 +35,7 @@
 #import "mParticle.h"
 #import "MPConsentKitFilter.h"
 #import "MPIConstants.h"
+#import <objc/message.h>
 
 #define DEFAULT_ALLOCATION_FOR_KITS 2
 
@@ -238,6 +239,15 @@ static NSMutableSet <id<MPExtensionKitProtocol>> *kitsRegistry;
     if (self.kitsInitialized) {
         return;
     }
+    
+    NSArray<NSNumber *> *supportedKits = [self supportedKits];
+    BOOL anyKitsIncluded = supportedKits != nil && supportedKits.count > 0;
+    
+    if (!anyKitsIncluded) {
+        self.kitsInitialized = YES;
+        return;
+    }
+    
     MPIUserDefaults *userDefaults = [MPIUserDefaults standardUserDefaults];
     
     NSArray *directoryContents = [userDefaults getKitConfigurations];
@@ -250,9 +260,7 @@ static NSMutableSet <id<MPExtensionKitProtocol>> *kitsRegistry;
         self.kitsInitialized = YES;
     }
     if ([MParticle sharedInstance].stateMachine.logLevel >= MPILogLevelDebug) {
-        NSArray<NSNumber *> *supportedKits = [self supportedKits];
-        
-        if (supportedKits.count > 0) {
+        if (anyKitsIncluded) {
             NSMutableString *listOfKits = [[NSMutableString alloc] initWithString:@"Included kits: {"];
             for (NSNumber *supportedKit in supportedKits) {
                 [listOfKits appendFormat:@"%@, ", [self nameForKitCode:supportedKit]];
@@ -447,9 +455,7 @@ static NSMutableSet <id<MPExtensionKitProtocol>> *kitsRegistry;
     }
     
     NSDictionary * configuration = kitConfiguration.configuration;
-    configuration = [self validateAndTransformToSafeConfiguration:configuration];
-    
-    if (configuration) {
+    if (configuration.count > 0) {
         kitRegister.wrapperInstance = [[NSClassFromString(kitRegister.className) alloc] init];
         
         MPKitAPI *kitApi = [[MPKitAPI alloc] initWithKitCode:kitRegister.code];
@@ -460,28 +466,6 @@ static NSMutableSet <id<MPExtensionKitProtocol>> *kitsRegistry;
         if ([kitRegister.wrapperInstance respondsToSelector:@selector(didFinishLaunchingWithConfiguration:)]) {
             [kitRegister.wrapperInstance didFinishLaunchingWithConfiguration:configuration];
         }
-    }
-}
-
-- (NSDictionary *)validateAndTransformToSafeConfiguration:(NSDictionary *)configuration {
-    if (configuration.count == 0) {
-        return nil;
-    }
-    
-    __block NSMutableDictionary *safeConfiguration = [[NSMutableDictionary alloc] initWithCapacity:configuration.count];
-    __block BOOL configurationModified = NO;
-    [configuration enumerateKeysAndObjectsUsingBlock:^(NSString * _Nonnull key, id _Nonnull obj, BOOL * _Nonnull stop) {
-        if ((NSNull *)obj != [NSNull null]) {
-            safeConfiguration[key] = obj;
-        } else {
-            configurationModified = YES;
-        }
-    }];
-    
-    if (configurationModified) {
-        return safeConfiguration.count > 0 ? [safeConfiguration copy] : nil;
-    } else {
-        return configuration;
     }
 }
 
@@ -1866,10 +1850,10 @@ static NSMutableSet <id<MPExtensionKitProtocol>> *kitsRegistry;
         MParticleUser *currentUser = [MParticle sharedInstance].identity.currentUser;
         
         BOOL disabledByConsent =  [self isDisabledByConsentKitFilter:self.kitConfigurations[kitRegister.code].consentKitFilter];
-        BOOL disabledByexcludingAnonymousUsers =  (self.kitConfigurations[kitRegister.code].excludeAnonymousUsers && !currentUser.isLoggedIn);
+        BOOL disabledByExcludingAnonymousUsers =  (self.kitConfigurations[kitRegister.code].excludeAnonymousUsers && !currentUser.isLoggedIn);
         BOOL disabledByRamping =  !(bracket == nullptr || (bracket != nullptr && bracket->shouldForward()));
         
-        if (active && !disabledByRamping && !disabledByConsent && !disabledByexcludingAnonymousUsers) {
+        if (active && !disabledByRamping && !disabledByConsent && !disabledByExcludingAnonymousUsers) {
             [activeKitsRegistry addObject:kitRegister];
         }
     }
@@ -1933,8 +1917,9 @@ static NSMutableSet <id<MPExtensionKitProtocol>> *kitsRegistry;
                 } else {
                     [self updateBracketsWithConfiguration:kitConfiguration.bracketConfiguration integrationId:integrationId];
                     
+                    NSDictionary *configuration = kitConfiguration.configuration;
                     if ([kitInstance respondsToSelector:@selector(setConfiguration:)]) {
-                        [kitInstance setConfiguration:kitConfiguration.configuration];
+                        [kitInstance setConfiguration:configuration];
                     }
                 }
                 
@@ -2104,7 +2089,7 @@ static NSMutableSet <id<MPExtensionKitProtocol>> *kitsRegistry;
                 MPILogError(@"Kit handler threw an exception: %@", e);
             }
             
-            if (!execStatus.success) {
+            if (execStatus.success) {
                 MPILogDebug(@"Successfully Forwarded to Kit");
             } else {
                 MPILogError(@"Failed to Forward to Kit");
@@ -2172,8 +2157,12 @@ static NSMutableSet <id<MPExtensionKitProtocol>> *kitsRegistry;
     __block NSNumber *lastKit = nil;
     
     dispatch_async(dispatch_get_main_queue(), ^{
+        if (kitFilter.forwardEvent.name != nil) {
+            MPILogDebug(@"Forwarding %@ call to kit: %@", kitFilter.forwardEvent.name, kitRegister.name);
+        } else if (NSStringFromSelector(selector) != nil) {
+            MPILogDebug(@"Forwarding %@ call to kit: %@", NSStringFromSelector(selector), kitRegister.name);
+        }
         
-        MPILogDebug(@"Forwarding %@ call to kit: %@", kitFilter.forwardEvent.name, kitRegister.name);
         MPKitExecStatus *execStatus;
         
         @try {
@@ -2197,7 +2186,9 @@ static NSMutableSet <id<MPExtensionKitProtocol>> *kitsRegistry;
                     [kitRegister.wrapperInstance shouldDelayMParticleUpload];
                     execStatus = [[MPKitExecStatus alloc] initWithSDKCode:kitRegister.code returnCode:MPKitReturnCodeSuccess];
                 } else if (parameters.count == 3) {
-                    execStatus = [kitRegister.wrapperInstance handleActionWithIdentifier:parameters[0] forRemoteNotification:parameters[1] withResponseInfo:parameters[2]];
+                    typedef MPKitExecStatus *(*send_type)(id, SEL, id, id, id);
+                    send_type func = (send_type)objc_msgSend;
+                    execStatus = func(kitRegister.wrapperInstance, selector, parameters[0], parameters[1], parameters[2]);
                 } else if (parameters.count == 2) {
                     execStatus = [kitRegister.wrapperInstance performSelector:selector withObject:parameters[0] withObject:parameters[1]];
                 } else if (parameters.count == 1) {
