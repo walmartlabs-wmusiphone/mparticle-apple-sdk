@@ -5,6 +5,7 @@
 #import <Foundation/Foundation.h>
 #import "MPIConstants.h"
 #import "MPIdentityApiRequest.h"
+#import "MPAliasRequest.h"
 
 @interface MPIdentityHTTPIdentities : NSObject
 
@@ -24,6 +25,15 @@
 @property (nonatomic) NSString *other2;
 @property (nonatomic) NSString *other3;
 @property (nonatomic) NSString *other4;
+@property (nonatomic) NSString *other5;
+@property (nonatomic) NSString *other6;
+@property (nonatomic) NSString *other7;
+@property (nonatomic) NSString *other8;
+@property (nonatomic) NSString *other9;
+@property (nonatomic) NSString *other10;
+@property (nonatomic) NSString *mobileNumber;
+@property (nonatomic) NSString *phoneNumber2;
+@property (nonatomic) NSString *phoneNumber3;
 
 - (NSDictionary *)dictionaryRepresentation;
 - (instancetype)initWithIdentities:(NSDictionary *)identities;
@@ -45,13 +55,23 @@
 
 @end
 
-
 @interface MPIdentifyHTTPRequest : MPIdentityHTTPBaseRequest
 
 @property (nonatomic) NSString *previousMPID;
 @property (nonatomic) MPIdentityHTTPIdentities *knownIdentities;
 
 - (id)initWithIdentityApiRequest:(MPIdentityApiRequest *)request;
+
+@end
+
+@interface MPIdentityHTTPAliasRequest : MPIdentityHTTPBaseRequest
+
+@property (nonatomic) NSNumber *sourceMPID;
+@property (nonatomic) NSNumber *destinationMPID;
+@property (nonatomic) NSDate *startTime;
+@property (nonatomic) NSDate *endTime;
+
+- (id)initWithIdentityApiAliasRequest:(MPAliasRequest *)aliasRequest;
 
 @end
 

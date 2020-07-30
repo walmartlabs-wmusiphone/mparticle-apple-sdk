@@ -9,6 +9,7 @@
 #import "MPPersistenceController.h"
 #import "MPStateMachine.h"
 #import "MPConsumerInfo.h"
+#import "MPIUserDefaults.h"
 
 @interface MParticle ()
 
@@ -37,9 +38,9 @@
         dictionary[@"request_id"] = requestId;
     }
     
-    NSNumber *requestTimestamp = @(floor([[NSDate date] timeIntervalSince1970]));
+    NSNumber *requestTimestamp = @(floor([NSDate date].timeIntervalSince1970*1000));
     if (requestTimestamp != nil) {
-        dictionary[@"request_timestamp_ms"] = @([requestTimestamp longLongValue] * 1000);
+        dictionary[@"request_timestamp_ms"] = @(requestTimestamp.longLongValue);
     }
     
     return dictionary;
@@ -78,9 +79,12 @@
         
 #if TARGET_OS_IOS == 1
         if (![MPStateMachine isAppExtension]) {
-            NSString *deviceToken = [[NSString alloc] initWithData:[MPNotificationController deviceToken] encoding:NSUTF8StringEncoding];
-            if (deviceToken) {
-                _knownIdentities.pushToken = deviceToken;
+            NSData *deviceTokenData = [MPNotificationController deviceToken];
+            if (deviceTokenData) {
+                NSString *deviceTokenString = [MPIUserDefaults stringFromDeviceToken:deviceTokenData];
+                if (deviceTokenString && [deviceTokenString length] > 0) {
+                    _knownIdentities.pushToken = deviceTokenString;
+                }
             }
         }
 #endif
@@ -158,6 +162,63 @@
 
 @end
 
+@implementation MPIdentityHTTPAliasRequest
+
+- (id)initWithIdentityApiAliasRequest:(MPAliasRequest *)aliasRequest {
+    if (self = [super init]) {
+        _sourceMPID = aliasRequest.sourceMPID;
+        _destinationMPID = aliasRequest.destinationMPID;
+        _startTime = aliasRequest.startTime;
+        _endTime = aliasRequest.endTime;
+    }
+    return self;
+}
+
+- (NSDictionary *)dictionaryRepresentation {
+    NSMutableDictionary *dictionary = [[super dictionaryRepresentation] mutableCopy];
+    [dictionary removeObjectForKey:@"client_sdk"];
+    [dictionary removeObjectForKey:@"request_timestamp_ms"];
+    
+    dictionary[@"request_type"] = @"alias";
+    
+    dictionary[@"api_key"] = MParticle.sharedInstance.stateMachine.apiKey;
+    
+    NSMutableDictionary *dataDictionary = [NSMutableDictionary dictionary];
+    
+    if (_sourceMPID != nil) {
+        dataDictionary[@"source_mpid"] = _sourceMPID;
+    }
+    
+    if (_destinationMPID != nil) {
+        dataDictionary[@"destination_mpid"] = _destinationMPID;
+    }
+    
+    if (_startTime) {
+        NSNumber *requestTimestamp = @(floor(_startTime.timeIntervalSince1970*1000));
+        if (requestTimestamp != nil) {
+            dataDictionary[@"start_unixtime_ms"] = @(requestTimestamp.longLongValue);
+        }
+    }
+    
+    if (_endTime) {
+        NSNumber *requestTimestamp = @(floor(_endTime.timeIntervalSince1970*1000));
+        if (requestTimestamp != nil) {
+            dataDictionary[@"end_unixtime_ms"] = @(requestTimestamp.longLongValue);
+        }
+    }
+    
+    NSString *deviceApplicationStamp = [MParticle sharedInstance].stateMachine.consumerInfo.deviceApplicationStamp;
+    if (deviceApplicationStamp) {
+        dataDictionary[@"device_application_stamp"] = deviceApplicationStamp;
+    }
+    
+    dictionary[@"data"] = dataDictionary;
+    
+    return dictionary;
+}
+
+@end
+
 
 @implementation MPIdentityHTTPIdentities
 
@@ -214,6 +275,42 @@
                     
                 case MPUserIdentityOther4:
                     self->_other4 = obj;
+                    break;
+                    
+                case MPUserIdentityOther5:
+                    self->_other5 = obj;
+                    break;
+                    
+                case MPUserIdentityOther6:
+                    self->_other6 = obj;
+                    break;
+                    
+                case MPUserIdentityOther7:
+                    self->_other7 = obj;
+                    break;
+                    
+                case MPUserIdentityOther8:
+                    self->_other8 = obj;
+                    break;
+                    
+                case MPUserIdentityOther9:
+                    self->_other9 = obj;
+                    break;
+                    
+                case MPUserIdentityOther10:
+                    self->_other10 = obj;
+                    break;
+                    
+                case MPUserIdentityMobileNumber:
+                    self->_mobileNumber = obj;
+                    break;
+                    
+                case MPUserIdentityPhoneNumber2:
+                    self->_phoneNumber2 = obj;
+                    break;
+                    
+                case MPUserIdentityPhoneNumber3:
+                    self->_phoneNumber3 = obj;
                     break;
                     
                 default:
@@ -337,6 +434,33 @@
         case MPUserIdentityOther4:
             return @"other4";
             
+        case MPUserIdentityOther5:
+            return @"other5";
+            
+        case MPUserIdentityOther6:
+            return @"other6";
+            
+        case MPUserIdentityOther7:
+            return @"other7";
+            
+        case MPUserIdentityOther8:
+            return @"other8";
+            
+        case MPUserIdentityOther9:
+            return @"other9";
+            
+        case MPUserIdentityOther10:
+            return @"other10";
+            
+        case MPUserIdentityMobileNumber:
+            return @"mobile_number";
+            
+        case MPUserIdentityPhoneNumber2:
+            return @"phone_number_2";
+            
+        case MPUserIdentityPhoneNumber3:
+            return @"phone_number_3";
+            
         default:
             return nil;
     }
@@ -367,6 +491,24 @@
         return @(MPUserIdentityOther3);
     } else if ([identityString isEqualToString:@"other4"]){
         return @(MPUserIdentityOther4);
+    } else if ([identityString isEqualToString:@"other5"]){
+        return @(MPUserIdentityOther5);
+    } else if ([identityString isEqualToString:@"other6"]){
+        return @(MPUserIdentityOther6);
+    } else if ([identityString isEqualToString:@"other7"]){
+        return @(MPUserIdentityOther7);
+    } else if ([identityString isEqualToString:@"other8"]){
+        return @(MPUserIdentityOther8);
+    } else if ([identityString isEqualToString:@"other9"]){
+        return @(MPUserIdentityOther9);
+    } else if ([identityString isEqualToString:@"other10"]){
+        return @(MPUserIdentityOther10);
+    } else if ([identityString isEqualToString:@"mobile_number"]){
+        return @(MPUserIdentityMobileNumber);
+    } else if ([identityString isEqualToString:@"phone_number_2"]){
+        return @(MPUserIdentityPhoneNumber2);
+    } else if ([identityString isEqualToString:@"phone_number_3"]){
+        return @(MPUserIdentityPhoneNumber3);
     } else {
         return nil;
     }

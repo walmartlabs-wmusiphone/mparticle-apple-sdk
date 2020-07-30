@@ -13,11 +13,16 @@
 #import "MPMessage.h"
 #import "MPBaseTestCase.h"
 #import "MPKitConfiguration.h"
+#import "OCMock.h"
+#import "MParticleWebView.h"
+#import "MPExtensionProtocol.h"
 
 @interface MParticle ()
 
++ (dispatch_queue_t)messageQueue;
 @property (nonatomic, strong) MPStateMachine *stateMachine;
 @property (nonatomic, strong) MPKitContainer *kitContainer;
+@property (nonatomic, strong) MParticleWebView *webView;
 
 @end
 
@@ -28,6 +33,8 @@
 - (NSString *)userAgent;
 - (void)setUserAgent:(NSString *const)userAgent;
 - (NSString *)fallbackUserAgent;
+- (NSString *)stringByStrippingPathComponent:(NSString *)path;
+- (NSString *)signatureRelativePath:(NSString *)relativePath url:(NSURL *)url;
 
 @end
 
@@ -51,36 +58,36 @@
     [super setUp];
     
     [MPPersistenceController setMpid:@12];
-    
+
     [MParticle sharedInstance].stateMachine = [[MPStateMachine alloc] init];
     MPStateMachine *stateMachine = [MParticle sharedInstance].stateMachine;
     stateMachine.apiKey = @"unit_test_app_key";
     stateMachine.secret = @"unit_test_secret";
-    
+
     [MParticle sharedInstance].kitContainer = [[MPKitContainer alloc] init];
     kitContainer = [MParticle sharedInstance].kitContainer;
-    
+
     NSSet<id<MPExtensionProtocol>> *registeredKits = [MPKitContainer registeredKits];
     if (!registeredKits) {
         MPKitRegister *kitRegister = [[MPKitRegister alloc] initWithName:@"KitTest" className:@"MPKitTestClassNoStartImmediately"];
         [MPKitContainer registerKit:kitRegister];
-        
+
         kitRegister = [[MPKitRegister alloc] initWithName:@"KitSecondTest" className:@"MPKitSecondTestClass"];
         [MPKitContainer registerKit:kitRegister];
-        
+
         kitRegister = [[MPKitRegister alloc] initWithName:@"AppsFlyer" className:@"MPKitAppsFlyerTest"];
         [MPKitContainer registerKit:kitRegister];
-        
+
         NSDictionary *configuration = @{
                                         @"id":@42,
                                         @"as":@{
                                                 @"appId":@"MyAppId"
                                                 }
                                         };
-        
+
         MPKitConfiguration *kitConfiguration = [[MPKitConfiguration alloc] initWithDictionary:configuration];
         [kitContainer startKit:@42 configuration:kitConfiguration];
-    }    
+    }
 }
 
 - (void)tearDown {
@@ -88,68 +95,48 @@
     [super tearDown];
 }
 
-- (void)testUserAgent {
-    XCTestExpectation *expectation = [self expectationWithDescription:@"User-Agent"];
-    
-    MPNetworkCommunication *networkCommunication = [[MPNetworkCommunication alloc] init];
-    
-    MPMessage *message = [[MPMessage alloc] initWithSession:nil messageType:@"e" messageInfo:@{@"key":@"value"} uploadStatus:MPUploadStatusBatch UUID:[[NSUUID UUID] UUIDString] timestamp:[[NSDate date] timeIntervalSince1970] userId:[MPPersistenceController mpId]];
-    
-    MPURLRequestBuilder *urlRequestBuilder = [MPURLRequestBuilder newBuilderWithURL:[networkCommunication eventURL]
-                                                                            message:[message serializedString]
-                                                                         httpMethod:@"POST"];
-    
-    dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
-        NSString *userAgent = [urlRequestBuilder userAgent];
-
-        XCTAssertNotNil(userAgent, @"Should not have been nil.");
-
-        [expectation fulfill];
-    });
-    
-    [self waitForExpectationsWithTimeout:1 handler:nil];
-}
-
 - (void)testCustomUserAgent {
-    [MParticle sharedInstance].customUserAgent = @"Test User Agent";
+    MParticleOptions *options = [MParticleOptions optionsWithKey:@"testKey" secret:@"testSecret"];
+    options.customUserAgent = @"Test User Agent";
+    [[MParticle sharedInstance] startWithOptions:options];
     
     XCTestExpectation *expectation = [self expectationWithDescription:@"User-Agent"];
     
     MPNetworkCommunication *networkCommunication = [[MPNetworkCommunication alloc] init];
     
-    MPMessage *message = [[MPMessage alloc] initWithSession:nil messageType:@"e" messageInfo:@{@"key":@"value"} uploadStatus:MPUploadStatusBatch UUID:[[NSUUID UUID] UUIDString] timestamp:[[NSDate date] timeIntervalSince1970] userId:[MPPersistenceController mpId]];
+    MPMessage *message = [[MPMessage alloc] initWithSession:nil messageType:@"e" messageInfo:@{@"key":@"value"} uploadStatus:MPUploadStatusBatch UUID:[[NSUUID UUID] UUIDString] timestamp:[[NSDate date] timeIntervalSince1970] userId:[MPPersistenceController mpId] dataPlanId:@"test" dataPlanVersion:@(1)];
     
     MPURLRequestBuilder *urlRequestBuilder = [MPURLRequestBuilder newBuilderWithURL:[networkCommunication eventURL]
                                                                             message:[message serializedString]
                                                                          httpMethod:@"POST"];
-    [urlRequestBuilder setUserAgent:nil];
     
-    dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
+    dispatch_async([MParticle messageQueue], ^{
         NSString *userAgent = [urlRequestBuilder userAgent];
         XCTAssertNotNil(userAgent, @"Should not have been nil.");
         XCTAssertTrue([userAgent isEqualToString:@"Test User Agent"], @"User Agent has an invalid value: %@", userAgent);
         [expectation fulfill];
     });
     
-    [self waitForExpectationsWithTimeout:1 handler:nil];
+    [self waitForExpectationsWithTimeout:3 handler:nil];
 }
 
 - (void)testDisableCollectUserAgent {
-    [MParticle sharedInstance].customUserAgent = nil;
-    [MParticle sharedInstance].collectUserAgent = NO;
+    MParticleOptions *options = [MParticleOptions optionsWithKey:@"testKey" secret:@"testSecret"];
+    options.customUserAgent = nil;
+    options.collectUserAgent = NO;
+    [[MParticle sharedInstance] startWithOptions:options];
     
     XCTestExpectation *expectation = [self expectationWithDescription:@"User-Agent"];
     
     MPNetworkCommunication *networkCommunication = [[MPNetworkCommunication alloc] init];
     
-    MPMessage *message = [[MPMessage alloc] initWithSession:nil messageType:@"e" messageInfo:@{@"key":@"value"} uploadStatus:MPUploadStatusBatch UUID:[[NSUUID UUID] UUIDString] timestamp:[[NSDate date] timeIntervalSince1970] userId:[MPPersistenceController mpId]];
+    MPMessage *message = [[MPMessage alloc] initWithSession:nil messageType:@"e" messageInfo:@{@"key":@"value"} uploadStatus:MPUploadStatusBatch UUID:[[NSUUID UUID] UUIDString] timestamp:[[NSDate date] timeIntervalSince1970] userId:[MPPersistenceController mpId] dataPlanId:@"test" dataPlanVersion:@(1)];
     
     MPURLRequestBuilder *urlRequestBuilder = [MPURLRequestBuilder newBuilderWithURL:[networkCommunication eventURL]
                                                                             message:[message serializedString]
                                                                          httpMethod:@"POST"];
-    [urlRequestBuilder setUserAgent:nil];
     
-    dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
+    dispatch_async([MParticle messageQueue], ^{
         NSString *userAgent = [urlRequestBuilder userAgent];
         XCTAssertNotNil(userAgent, @"Should not have been nil.");
         
@@ -191,8 +178,6 @@
 
 - (void)testURLRequestComposition {
     MPNetworkCommunication *networkCommunication = [[MPNetworkCommunication alloc] init];
-    MParticle.sharedInstance.collectUserAgent = YES;
-    MParticle.sharedInstance.customUserAgent = nil;
     MPURLRequestBuilder *urlRequestBuilder = [MPURLRequestBuilder newBuilderWithURL:[networkCommunication configURL] message:nil httpMethod:@"GET"];
     NSMutableURLRequest *asyncURLRequest = [urlRequestBuilder build];
     
@@ -200,9 +185,6 @@
     NSArray *keys = [headersDictionary allKeys];
 
     NSMutableArray *headers = @[@"User-Agent", @"Accept-Encoding", @"Content-Encoding", @"locale", @"Content-Type", @"timezone", @"secondsFromGMT", @"Date", @"x-mp-signature", @"x-mp-env", @"x-mp-kits"].mutableCopy;
-#if TARGET_OS_IOS != 1
-    [headers removeObject:@"User-Agent"];
-#endif
     
     NSString *headerValue;
     
@@ -230,6 +212,9 @@
             
             kitRange = [headerValue rangeOfString:@"314"];
             XCTAssertTrue(kitRange.location != NSNotFound);
+        } else if ([header isEqualToString:@"User-Agent"]) {
+            NSString *defaultAgent = [NSString stringWithFormat:@"mParticle Apple SDK/%@", MParticle.sharedInstance.version];
+            XCTAssertEqualObjects(headerValue, defaultAgent);
         }
     }
 }
@@ -257,7 +242,8 @@
                                             kMPRemoteConfigExceptionHandlingModeKey:kMPRemoteConfigExceptionHandlingModeForce,
                                             kMPRemoteConfigSessionTimeoutKey:@112};
     
-    [[MPIUserDefaults standardUserDefaults] setConfiguration:responseConfiguration andETag:eTag];
+    NSTimeInterval requestTimestamp = [[NSDate date] timeIntervalSince1970];
+    [[MPIUserDefaults standardUserDefaults] setConfiguration:responseConfiguration eTag:eTag requestTimestamp:requestTimestamp currentAge:@"0" maxAge:nil];
 
     MPNetworkCommunication *networkCommunication = [[MPNetworkCommunication alloc] init];
     MPURLRequestBuilder *urlRequestBuilder = [MPURLRequestBuilder newBuilderWithURL:[networkCommunication configURL] message:nil httpMethod:@"GET"];
@@ -378,6 +364,22 @@
 }
 
 - (void)testEventRequest {
+    MParticle *sharedInstance = [MParticle sharedInstance];
+    MParticleWebView *webview = sharedInstance.webView;
+    NSString *agent = @"Example resolved agent";
+    
+    id mockWebView = OCMPartialMock(webview);
+    [[[mockWebView stub] andReturn:agent] userAgent];
+    
+    id mockKitContainer = OCMClassMock([MPKitContainer class]);
+    id mockKit = OCMProtocolMock(@protocol(MPExtensionKitProtocol));
+    [(id<MPExtensionKitProtocol>)[[mockKit stub] andReturn:@42] code];
+    [[[mockKitContainer stub] andReturn:@[mockKit]] activeKitsRegistry];
+    
+    id mockMParticle = OCMPartialMock(sharedInstance);
+    [[[mockMParticle stub] andReturn:mockWebView] webView];
+    [[[mockMParticle stub] andReturn:mockKitContainer] kitContainer];
+    
     NSDictionary *configuration1 = @{
                                      @"id":@42,
                                      @"as":@{
@@ -389,14 +391,11 @@
     [[MParticle sharedInstance].kitContainer configureKits:nil];
     [[MParticle sharedInstance].kitContainer configureKits:kitConfigs];
     
-    MParticle.sharedInstance.collectUserAgent = YES;
-    MParticle.sharedInstance.customUserAgent = nil;
-    
-    XCTAssertEqual([MPURLRequestBuilder requestTimeout], 30, @"Should have been equal.");
+    XCTAssertEqual([MPURLRequestBuilder requestTimeout], 10, @"Should have been equal.");
     
     MPNetworkCommunication *networkCommunication = [[MPNetworkCommunication alloc] init];
     
-    MPMessage *message = [[MPMessage alloc] initWithSession:nil messageType:@"e" messageInfo:@{@"key":@"value"} uploadStatus:MPUploadStatusBatch UUID:[[NSUUID UUID] UUIDString] timestamp:[[NSDate date] timeIntervalSince1970] userId:[MPPersistenceController mpId]];
+    MPMessage *message = [[MPMessage alloc] initWithSession:nil messageType:@"e" messageInfo:@{@"key":@"value"} uploadStatus:MPUploadStatusBatch UUID:[[NSUUID UUID] UUIDString] timestamp:[[NSDate date] timeIntervalSince1970] userId:[MPPersistenceController mpId] dataPlanId:@"test" dataPlanVersion:@(1)];
     
     MPURLRequestBuilder *urlRequestBuilder = [MPURLRequestBuilder newBuilderWithURL:[networkCommunication eventURL]
                                                                             message:[message serializedString]
@@ -428,6 +427,48 @@
             XCTAssertEqualObjects(headerValue, @"42");
         }
     }
+    [mockMParticle stopMocking];
+    [mockKitContainer stopMocking];
+    [mockKit stopMocking];
+    [mockWebView stopMocking];
+}
+
+- (void)testStripPathComponent {
+    MPURLRequestBuilder *builder = [MPURLRequestBuilder newBuilderWithURL:[NSURL URLWithString:@"https://example.com"]];
+    NSString *result = [builder stringByStrippingPathComponent:@"/identity/v1/identify"];
+    XCTAssertEqualObjects(result, @"/v1/identify");
+}
+
+- (void)testSignatureRelativePath {
+    MPNetworkOptions *networkOptions = [[MPNetworkOptions alloc] init];
+    MParticle *sharedInstance = [MParticle sharedInstance];
+    id mockMParticle = OCMPartialMock(sharedInstance);
+    [[[mockMParticle stub] andReturn:networkOptions] networkOptions];
+    MPURLRequestBuilder *builder = [MPURLRequestBuilder newBuilderWithURL:[NSURL URLWithString:@"https://example.com"]];
+    
+    networkOptions.identityHost = @"identity.mp.example.com";
+    networkOptions.overridesIdentitySubdirectory = NO;
+    
+    NSString *result = [builder signatureRelativePath:@"/v1/identify" url:[NSURL URLWithString:@"https://identity.mp.example.com/v1/identify"]];
+    XCTAssertEqualObjects(result, @"/v1/identify");
+    
+    networkOptions.identityHost = @"mp.example.com/identity/v1/identify";
+    networkOptions.overridesIdentitySubdirectory = YES;
+    
+    result = [builder signatureRelativePath:@"/identity/v1/identify" url:[NSURL URLWithString:@"https://mp.example.com/identity/v1/identify"]];
+    XCTAssertEqualObjects(result, @"/v1/identify");
+    
+    networkOptions.identityHost = (id _Nonnull)nil;
+    
+    result = [builder signatureRelativePath:@"/v1/identify" url:[NSURL URLWithString:@"https://identity.mparticle.com/v1/identify"]];
+    XCTAssertEqualObjects(result, @"/v1/identify");
+    
+    networkOptions = nil;
+    
+    result = [builder signatureRelativePath:@"/v1/identify" url:[NSURL URLWithString:@"https://identity.mparticle.com/v1/identify"]];
+    XCTAssertEqualObjects(result, @"/v1/identify");
+    
+    [mockMParticle stopMocking];
 }
 
 @end

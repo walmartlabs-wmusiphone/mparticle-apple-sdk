@@ -69,7 +69,7 @@ static NSArray *mpStoredCertificates = nil;
     sessionConfiguration.timeoutIntervalForResource = 30;
     _urlSession = [NSURLSession sessionWithConfiguration:sessionConfiguration
                                                 delegate:self
-                                           delegateQueue:[NSOperationQueue mainQueue]];
+                                           delegateQueue:nil];
     
     _urlSession.sessionDescription = [[NSUUID UUID] UUIDString];
     
@@ -91,11 +91,11 @@ static NSArray *mpStoredCertificates = nil;
     __block SecTrustRef serverTrust = [protectionSpace serverTrust];
     MPNetworkOptions *networkOptions = [[MParticle sharedInstance] networkOptions];
     
-    BOOL isMParticleHost = [host rangeOfString:@"mparticle.com"].location != NSNotFound;
-    
-    BOOL isNetworkOptionsHost = [host isEqualToString:networkOptions.configHost] || [host isEqualToString:networkOptions.identityHost] || [host isEqualToString:networkOptions.eventsHost];
-    
-    BOOL isPinningHost = isMParticleHost || isNetworkOptionsHost;
+    BOOL isPinningHost = [host rangeOfString:@"mparticle.com"].location != NSNotFound ||
+                            (networkOptions.configHost.pathComponents.count > 0 && [host isEqualToString:networkOptions.configHost.pathComponents[0]]) ||
+                            (networkOptions.identityHost.pathComponents.count > 0 && [host isEqualToString:networkOptions.identityHost.pathComponents[0]]) ||
+                            (networkOptions.eventsHost.pathComponents.count > 0 && [host isEqualToString:networkOptions.eventsHost.pathComponents[0]]) ||
+                            (networkOptions.aliasHost.pathComponents.count > 0 && [host isEqualToString:networkOptions.aliasHost.pathComponents[0]]);
     
     if ([authenticationMethod isEqualToString:NSURLAuthenticationMethodServerTrust] &&
         isPinningHost &&
@@ -219,11 +219,17 @@ static NSArray *mpStoredCertificates = nil;
         
         self.dataTask = [self.urlSession dataTaskWithRequest:urlRequest];
         [_dataTask resume];
-        dispatch_semaphore_wait(requestSemaphore, DISPATCH_TIME_FOREVER);
-        response.data = completionData;
-        response.error = completionError;
-        response.downloadTime = completionDownloadTime;
-        response.httpResponse = completionHttpResponse;
+        long exitCode = dispatch_semaphore_wait(requestSemaphore, dispatch_time(DISPATCH_TIME_NOW, (NETWORK_REQUEST_MAX_WAIT_SECONDS + 1) * NSEC_PER_SEC));
+        if (exitCode == 0) {
+            response.data = completionData;
+            response.error = completionError;
+            response.downloadTime = completionDownloadTime;
+            response.httpResponse = completionHttpResponse;
+        } else {
+            response.error = [NSError errorWithDomain:@"com.mparticle" code:0 userInfo:@{@"mParticle Error":@"Semaphore wait timed out"}];
+            [_urlSession invalidateAndCancel];
+        }
+        
     } else {
         response.error = [NSError errorWithDomain:@"MPConnector" code:1 userInfo:nil];
     }
@@ -254,11 +260,16 @@ static NSArray *mpStoredCertificates = nil;
         };
         self.dataTask = [self.urlSession uploadTaskWithRequest:urlRequest fromData:serializedParams];
         [_dataTask resume];
-        dispatch_semaphore_wait(requestSemaphore, DISPATCH_TIME_FOREVER);
-        response.data = completionData;
-        response.error = completionError;
-        response.downloadTime = completionDownloadTime;
-        response.httpResponse = completionHttpResponse;
+        long exitCode = dispatch_semaphore_wait(requestSemaphore, dispatch_time(DISPATCH_TIME_NOW, (NETWORK_REQUEST_MAX_WAIT_SECONDS + 1) * NSEC_PER_SEC));
+        if (exitCode == 0) {
+            response.data = completionData;
+            response.error = completionError;
+            response.downloadTime = completionDownloadTime;
+            response.httpResponse = completionHttpResponse;
+        } else {
+            response.error = [NSError errorWithDomain:@"com.mparticle" code:0 userInfo:@{@"mParticle Error":@"Semaphore wait timed out"}];
+            [_urlSession invalidateAndCancel];
+        }
     } else {
         response.error = [NSError errorWithDomain:@"MPConnector" code:1 userInfo:nil];
     }

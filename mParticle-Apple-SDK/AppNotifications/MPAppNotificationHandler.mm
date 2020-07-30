@@ -300,8 +300,7 @@
                 
                 if (execStatus.success) {
                     
-                    MPForwardRecord *forwardRecord = [[MPForwardRecord alloc] initWithMessageType:MPMessageTypePushNotification
-                                                                                       execStatus:execStatus];
+                    MPForwardRecord *forwardRecord = [[MPForwardRecord alloc] initWithMessageType:MPMessageTypePushNotification execStatus:execStatus];
                     
                     dispatch_async([MParticle messageQueue], ^{
                         [[MParticle sharedInstance].persistenceController saveForwardRecord:forwardRecord];
@@ -315,7 +314,7 @@
 }
 #endif
 
-- (BOOL)continueUserActivity:(nonnull NSUserActivity *)userActivity restorationHandler:(void(^ _Nonnull)(NSArray * _Nullable restorableObjects))restorationHandler {
+- (BOOL)continueUserActivity:(nonnull NSUserActivity *)userActivity restorationHandler:(void(^ _Nonnull)(NSArray<id<UIUserActivityRestoring>> * __nullable restorableObjects))restorationHandler {
     MPStateMachine *stateMachine = [MParticle sharedInstance].stateMachine;
     if (stateMachine.optOut) {
         return NO;

@@ -69,6 +69,8 @@ static void processBinaryImage(const char *name, const void *header, struct uuid
 
 @property (nonatomic, strong, readonly) MPPersistenceController *persistenceController;
 @property (nonatomic, strong, readonly) MPStateMachine *stateMachine;
+@property (nonatomic, strong, nullable) NSString *dataPlanId;
+@property (nonatomic, strong, nullable) NSNumber *dataPlanVersion;
 
 @end
 
@@ -668,7 +670,7 @@ static void flagReadingImageList(BinaryImageList *list, bool enable) {
 }
 
 /**
- Returns the next image record. This method is async-safe. If no additional images are available, will return NULL;
+ Returns the next image record. This method is async-safe. If no additional images are available, will return NULL.
  
  @param list The list to be iterated.
  @param current The current image record, or NULL to start iteration.

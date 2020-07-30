@@ -7,7 +7,7 @@
 #import <UIKit/UIKit.h>
 #import "MPStateMachine.h"
 #import "MPSearchAdsAttribution.h"
-#import "MParticle.h"
+#import "mParticle.h"
 
 NSString *const kMPApplicationInformationKey = @"ai";
 NSString *const kMPApplicationNameKey = @"an";
@@ -31,6 +31,7 @@ NSString *const kMPAppBadgeNumberKey = @"bn";
 NSString *const kMPAppStoreReceiptKey = @"asr";
 
 static NSString *kMPAppStoreReceiptString = nil;
+static id mockUIApplication = nil;
 
 @interface MParticle ()
 
@@ -134,8 +135,9 @@ static NSString *kMPAppStoreReceiptString = nil;
     }
     
     return _buildUUID;
-#endif
+#else
     return @"00000000-0000-0000-0000-000000000000";
+#endif
 }
 
 - (NSString *)bundleIdentifier {
@@ -256,7 +258,12 @@ static NSString *kMPAppStoreReceiptString = nil;
     return bundleInfoDictionary[@"CFBundleShortVersionString"];
 }
 
++ (void)setMockApplication:(id)mockApplication {
+    mockUIApplication = mockApplication;
+}
+
 + (UIApplication *)sharedUIApplication {
+    if (mockUIApplication) return mockUIApplication;
     if ([[UIApplication class] respondsToSelector:@selector(sharedApplication)]) {
         return [[UIApplication class] performSelector:@selector(sharedApplication)];
     }
@@ -279,37 +286,6 @@ static NSString *kMPAppStoreReceiptString = nil;
         return badgeNumber;
     }
     return 0;
-}
-
-- (NSNumber *)remoteNotificationTypes {
-    NSNumber *notificationTypes;
-    
-    if (![MPStateMachine isAppExtension]) {
-        UIApplication *app = [[UIApplication class] performSelector:@selector(sharedApplication)];
-        
-        if ([[UIDevice currentDevice].systemVersion floatValue] >= 8.0) {
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Wdeprecated-declarations"
-            __block UIUserNotificationSettings *userNotificationSettings = nil;
-            if ([NSThread isMainThread]) {
-                userNotificationSettings = [app currentUserNotificationSettings];
-            } else {
-                dispatch_sync(dispatch_get_main_queue(), ^{
-                    userNotificationSettings = [app currentUserNotificationSettings];
-                });
-            }
-            
-#pragma clang diagnostic pop
-            notificationTypes = @(userNotificationSettings.types);
-        } else {
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Wdeprecated-declarations"
-            notificationTypes = @([app enabledRemoteNotificationTypes]);
-#pragma clang diagnostic pop
-        }
-    }
-    
-    return notificationTypes;
 }
 #endif
 
@@ -467,11 +443,6 @@ static NSString *kMPAppStoreReceiptString = nil;
     }
     
 #if TARGET_OS_IOS == 1
-    NSNumber *notificationTypes = self.remoteNotificationTypes;
-    if (notificationTypes != nil) {
-        applicationInfo[kMPDeviceSupportedPushNotificationTypesKey] = notificationTypes;
-    }
-    
     NSNumber *badgeNumber = self.badgeNumber;
     if (badgeNumber != nil) {
         applicationInfo[kMPAppBadgeNumberKey] = badgeNumber;

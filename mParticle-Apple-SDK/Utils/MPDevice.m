@@ -5,12 +5,13 @@
 #import "MPStateMachine.h"
 #import "MPIUserDefaults.h"
 #import <objc/runtime.h>
+#import <objc/message.h>
 #import <mach-o/ldsyms.h>
 #import <dlfcn.h>
 #import <mach-o/arch.h>
 #import <mach-o/dyld.h>
 #import "MPIConstants.h"
-#import "MParticle.h"
+#import "mParticle.h"
 #import "MPBackendController.h"
 #import "MPILogger.h"
 
@@ -127,7 +128,7 @@ int main(int argc, char *argv[]);
         id<NSObject> adIdentityManager = [MPIdentifierManager performSelector:selector];
         
         selector = NSSelectorFromString(@"isAdvertisingTrackingEnabled");
-        BOOL advertisingTrackingEnabled = (BOOL)[adIdentityManager performSelector:selector];
+        BOOL advertisingTrackingEnabled = ((BOOL (*)(id, SEL))objc_msgSend)(adIdentityManager, selector);
         isAdTrackingLimited = !advertisingTrackingEnabled;
         BOOL alwaysTryToCollectIDFA = [MParticle sharedInstance].stateMachine.alwaysTryToCollectIDFA;
         if (advertisingTrackingEnabled || alwaysTryToCollectIDFA) {
@@ -176,6 +177,9 @@ int main(int argc, char *argv[]);
             case CPU_SUBTYPE_ARM_V7S:
                 [cpu appendString:@"v7s"];
                 break;
+                
+            default:
+                break;
         }
 #if !TARGET_IPHONE_SIMULATOR
     } else if (type == CPU_TYPE_ARM64) {
@@ -210,7 +214,11 @@ int main(int argc, char *argv[]);
     
     if (radioAccessTechnology) {
         NSRange range = [radioAccessTechnology rangeOfString:@"CTRadioAccessTechnology"];
-        radioAccessTechnology = [radioAccessTechnology substringFromIndex:NSMaxRange(range)];
+        if (range.location != NSNotFound) {
+            radioAccessTechnology = [radioAccessTechnology substringFromIndex:NSMaxRange(range)];
+        } else {
+            radioAccessTechnology = @"None";
+        }
     } else {
         radioAccessTechnology = @"None";
     }
@@ -292,9 +300,9 @@ int main(int argc, char *argv[]);
     return @"iOS";
 #elif TARGET_OS_TV == 1
     return @"tvOS";
-#endif
-    
+#else
     return @"unknown";
+#endif
 }
 
 - (NSString *)product {
@@ -545,9 +553,12 @@ int main(int argc, char *argv[]);
     NSData *pushNotificationToken;
     if (![MPStateMachine isAppExtension]) {
         pushNotificationToken = [MPNotificationController deviceToken];
-    }
-    if (pushNotificationToken) {
-        deviceDictionary[kMPDeviceTokenKey] = [NSString stringWithFormat:@"%@", pushNotificationToken];
+        if (pushNotificationToken) {
+            NSString *tokenString = [MPIUserDefaults stringFromDeviceToken:pushNotificationToken];
+            if (tokenString) {
+                deviceDictionary[kMPDeviceTokenKey] = tokenString;
+            }
+        }
     }
 #endif
     

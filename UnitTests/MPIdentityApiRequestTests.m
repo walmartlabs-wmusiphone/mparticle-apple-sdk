@@ -41,4 +41,20 @@
     XCTAssertEqualObjects(@"bar", [request.userIdentities objectForKey:@(MPUserIdentityOther)]);
 }
 
+- (void)testImmutableIdentitiesProperty {
+    MPIdentityApiRequest *request = [[MPIdentityApiRequest alloc] init];
+    id identities = request.userIdentities;
+    BOOL isImmutableKind = [identities isKindOfClass:[NSDictionary class]];
+    BOOL isMutableKind = [identities isKindOfClass:[NSMutableDictionary class]];
+    XCTAssert(isImmutableKind && !isMutableKind);
+}
+
+- (void)testIdentitiesAreNotNull {
+    MPIdentityApiRequest *request = [[MPIdentityApiRequest alloc] init];
+    request.customerId = nil;
+    request.email = nil;
+    XCTAssertNotEqual((NSNull *)request.email, [NSNull null]);
+    XCTAssertNotEqual((NSNull *)request.customerId, [NSNull null]);
+}
+
 @end
