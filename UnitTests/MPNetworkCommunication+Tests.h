@@ -4,5 +4,7 @@
 
 - (NSURL *)configURL;
 - (NSURL *)eventURL;
+- (NSURL *)aliasURL;
+- (NSURL *)modifyURL;
 
 @end

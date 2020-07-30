@@ -1,13 +1,12 @@
 #import <XCTest/XCTest.h>
 #import "OCMock.h"
 #import "MPEvent.h"
-#import "MPEvent+Internal.h"
 #import "MPIConstants.h"
 #import "MPStateMachine.h"
 #import "MPSession.h"
 #import "MPProduct.h"
 #import "MPPersistenceController.h"
-#import "MParticle.h"
+#import "mParticle.h"
 #import "MPBackendController.h"
 #import "MPBaseTestCase.h"
 
@@ -50,7 +49,7 @@
     NSDictionary *eventInfo = @{@"speed":@25,
                                 @"modality":@"sprinting"};
     
-    event.info = eventInfo;
+    event.customAttributes = eventInfo;
     event.category = @"Olympic Games";
     
     MPEvent *copyEvent = [event copy];
@@ -64,10 +63,10 @@
     XCTAssertNotEqualObjects(copyEvent, event, @"Copied event object should have been different.");
     
     copyEvent.name = event.name;
-    copyEvent.info = nil;
+    copyEvent.customAttributes = nil;
     XCTAssertNotEqualObjects(copyEvent, event, @"Copied event object should have been different.");
     
-    copyEvent.info = event.info;
+    copyEvent.customAttributes = event.customAttributes;
     copyEvent.duration = @1;
     XCTAssertNotEqualObjects(copyEvent, event, @"Copied event object should have been different.");
     
@@ -82,11 +81,20 @@
     
     XCTAssertNil(event.category, @"Should have been nil.");
     
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated-declarations"
+    XCTAssertNotNil(event.customAttributes, @"Should not have been nil.");
     XCTAssertNotNil(event.info, @"Should not have been nil.");
+
+    XCTAssertEqual(event.customAttributes.count, 2, @"Should have been two values in the customAttributes dictionary.");
+    XCTAssertEqual(event.info.count, 2, @"Should have been two values in the info dictionary.");
+
     NSDictionary *copyEventInfo = [eventInfo copy];
-    event.info = copyEventInfo;
+    event.customAttributes = copyEventInfo;
+    XCTAssertEqualObjects(event.customAttributes, eventInfo, @"Should have been equal.");
     XCTAssertEqualObjects(event.info, eventInfo, @"Should have been equal.");
-    
+#pragma clang diagnostic pop
+
     event = [[MPEvent alloc] init];
     XCTAssertNotNil(event, @"Should not have been nil.");
 }
@@ -154,7 +162,7 @@
     
     MPEvent *event = [[MPEvent alloc] initWithName:@"Dinosaur Run" type:MPEventTypeOther];
     event.duration = eventDuration;
-    event.info = @{@"speed":@25,
+    event.customAttributes = @{@"speed":@25,
                    @"modality":@"sprinting"};
     event.category = @"Olympic Games";
     
@@ -179,7 +187,7 @@
 
 - (void)testBreadcrumbDictionaryRepresentation {
     MPEvent *event = [[MPEvent alloc] initWithName:@"Dinosaur Run" type:MPEventTypeNavigation];
-    event.info = @{@"speed":@25,
+    event.customAttributes = @{@"speed":@25,
                    @"modality":@"sprinting"};
     
     NSDictionary *dictionaryRepresentation = [event breadcrumbDictionaryRepresentation];
@@ -189,25 +197,25 @@
     XCTAssertNil(dictionaryRepresentation[kMPEventTypeKey], @"Type should have been nil for screen events.");
     XCTAssertNil(dictionaryRepresentation[kMPEventLength], @"Length should have been nil.");
     XCTAssertNil(dictionaryRepresentation[kMPEventCounterKey], @"Counter should have been nil for screen events.");
-    XCTAssertEqualObjects(dictionaryRepresentation[kMPAttributesKey], event.info, @"Attributes are not being set correctly.");
+    XCTAssertEqualObjects(dictionaryRepresentation[kMPAttributesKey], event.customAttributes, @"Attributes are not being set correctly.");
 }
 
 - (void)testSetEventAttributes {
     MPEvent *event = [[MPEvent alloc] initWithName:@"foo" type:MPEventTypeNavigation];
-    XCTAssertNil(event.info);
+    XCTAssertNil(event.customAttributes);
     id mockLongValue = [OCMockObject mockForClass:[NSString class]];
     OCMStub([mockLongValue length]).andReturn(LIMIT_ATTR_VALUE_LENGTH); //just short enough
-    event.info = @{@"foo-attribute-key":mockLongValue};
-    XCTAssertNotNil(event.info);
+    event.customAttributes = @{@"foo-attribute-key":mockLongValue};
+    XCTAssertNotNil(event.customAttributes);
 }
 
 - (void)testSetLongEventAttributes {
     MPEvent *event = [[MPEvent alloc] initWithName:@"foo" type:MPEventTypeNavigation];
-    XCTAssertNil(event.info);
+    XCTAssertNil(event.customAttributes);
     id mockLongValue = [OCMockObject mockForClass:[NSString class]];
     OCMStub([mockLongValue length]).andReturn(LIMIT_ATTR_VALUE_LENGTH+1); //just a bit too long
-    event.info = @{@"foo-attribute-key":mockLongValue};
-    XCTAssertNil(event.info);
+    event.customAttributes = @{@"foo-attribute-key":mockLongValue};
+    XCTAssertNil(event.customAttributes);
 }
 
 - (void)testScreenDictionaryRepresentation {
@@ -228,6 +236,8 @@
     NSArray *customFlags = nil;
     NSString *customFlagKey = @"Era";
     NSString *customFlagValue = @"Mesozoic";
+    NSString *customFlagValue2 = @"Paleozoic";
+    NSString *customFlagValue3 = @"Cenozoic";
 
     [event addCustomFlags:customFlags withKey:customFlagKey];
     XCTAssertNil(event.customFlags, @"Should have been nil.");
@@ -248,7 +258,21 @@
     customFlags = @[customFlagValue];
     [event addCustomFlags:customFlags withKey:customFlagKey];
     XCTAssertNotNil(event.customFlags, @"Should not have been nil.");
+    XCTAssertEqual(event.customFlags[customFlagKey].count, 1);
+
+    customFlagKey = @"Era";
+    customFlags = @[customFlagValue2];
+    [event addCustomFlags:customFlags withKey:customFlagKey];
+    XCTAssertNotNil(event.customFlags, @"Should not have been nil.");
+    XCTAssertEqual(event.customFlags[customFlagKey].count, 2);
+
+    customFlagKey = @"Era";
+    customFlags = @[customFlagValue3];
+    [event addCustomFlags:customFlags withKey:customFlagKey];
+    XCTAssertNotNil(event.customFlags, @"Should not have been nil.");
+    XCTAssertEqual(event.customFlags[customFlagKey].count, 3);
     
+    customFlags = @[customFlagValue, customFlagValue2, customFlagValue3];
     NSDictionary *dictionaryRepresentation = [event dictionaryRepresentation];
     NSMutableDictionary *expectedDictionary = [@{customFlagKey:customFlags} mutableCopy];
     XCTAssertEqualObjects(dictionaryRepresentation[@"flags"], expectedDictionary, @"Should have been equal.");
@@ -275,20 +299,22 @@
     [event addCustomFlag:customFlagValue withKey:customFlagKey];
     XCTAssertNotNil(event.customFlags, @"Should not have been nil.");
     
+    customFlags = @[customFlagValue];
+    expectedDictionary = [@{customFlagKey:customFlags} mutableCopy];
     dictionaryRepresentation = [event dictionaryRepresentation];
     XCTAssertEqualObjects(dictionaryRepresentation[@"flags"], expectedDictionary, @"Should have been equal.");
 }
 
 - (void)testEquality {
     MPEvent *event1 = [[MPEvent alloc] initWithName:@"Dinosaur Run" type:MPEventTypeNavigation];
-    event1.info = @{@"Shoes":@"Sneakers"};
+    event1.customAttributes = @{@"Shoes":@"Sneakers"};
     
     MPEvent *event2 = [[MPEvent alloc] initWithName:@"Dinosaur Run" type:MPEventTypeNavigation];
     XCTAssertNotEqualObjects(event1, event2, @"Should not have been equal.");
     XCTAssertNotEqualObjects(event2, event1, @"Should not have been equal.");
     
     event1.duration = @1;
-    event2.info = @{@"Shoes":@"Sneakers"};
+    event2.customAttributes = @{@"Shoes":@"Sneakers"};
     XCTAssertNotEqualObjects(event1, event2, @"Should not have been equal.");
     XCTAssertNotEqualObjects(event2, event1, @"Should not have been equal.");
     
@@ -320,47 +346,8 @@
                                         };
     
     MPEvent *event = [[MPEvent alloc] initWithName:@"Jump In Time" type:MPEventTypeNavigation];
-    event.info = (NSDictionary *)product;
-    XCTAssertNotNil(event.info, @"Should not have been nil.");
-    XCTAssertEqualObjects(event.info, expectedEventInfo, @"Should have been equal.");
+    event.customAttributes = product.dictionaryRepresentation;
+    XCTAssertNotNil(event.customAttributes, @"Should not have been nil.");
+    XCTAssertEqualObjects(event.customAttributes, expectedEventInfo, @"Should have been equal.");
 }
-
-#if TARGET_OS_IOS == 1
-- (void)testWebEvent {
-    NSURL *oddURL = [[NSURL alloc] initWithString:@"mp-sdk://logEvent/%7B%22EventName%22:%22selected%20my%20response%22,%22EventCategory%22:1,%22UserAttributes%22:%7B%7D,%22UserIdentities%22:%7B%7D,%22Store%22:%7B%7D,%22EventAttributes%22:%7B%22question%20id%22:4644,%22question%20text%22:%22Do%20you%20want%20to%20build%20a%20snowman%3F%22,%22user%20response%22:%22no%22,%22debug_platform%22:%22ios%22%7D,%22SDKVersion%22:%222.3.3%22,%22SessionId%22:%22305b36bb-0eff-4fc1-a20a-7296264da842%22,%22EventDataType%22:4,%22Debug%22:false,%22Location%22:null,%22OptOut%22:null,%22ExpandedEventCount%22:0,%22ClientGeneratedId%22:%221e9c5dec-5171-4780-aa20-16bd6d16aac8%22,%22DeviceId%22:%22a571153f-aad2-4956-be9e-3d7b83051fc3%22,%22MPID%22:0,%22Timestamp%22:1524610824707%7D"];
-    
-    id mockBackendController = OCMClassMock([MPBackendController class]);
-    [MParticle sharedInstance].backendController = mockBackendController;
-    
-    MPEvent *testEvent = [[MPEvent alloc] init];
-    testEvent.name = @"selected my response";
-    testEvent.type = MPEventTypeNavigation;
-    testEvent.info = @{
-                       @"debug_platform": @"ios",
-                       @"question id": @4644,
-                       @"question text": @"Do you want to build a snowman?",
-                       @"user response": @"no"
-                       };
-    
-    [[[mockBackendController expect] ignoringNonObjectArgs] logEvent:[OCMArg checkWithBlock:^BOOL(id value) {
-        MPEvent *returnedEvent = ((MPEvent *)value);
-        XCTAssertEqualObjects(returnedEvent.name, testEvent.name);
-        XCTAssertEqual(returnedEvent.type, testEvent.type);
-        XCTAssertEqualObjects(returnedEvent.info, testEvent.info);
-        
-        return YES;
-    }]
-                                                   completionHandler:[OCMArg any]];
-    
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Wdeprecated-declarations"
-    [[MParticle sharedInstance] processWebViewLogEvent: oddURL];
-#pragma clang diagnostic pop
-
-    [mockBackendController verifyWithDelay:2];
-    
-    [mockBackendController stopMocking];
-}
-#endif
-
 @end

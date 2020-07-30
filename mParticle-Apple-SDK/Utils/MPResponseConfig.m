@@ -7,6 +7,7 @@
 #import "MPIUserDefaults.h"
 #import "MPPersistenceController.h"
 #import "MPApplication.h"
+#import "MPBackendController.h"
 
 #if TARGET_OS_IOS == 1
     #import <CoreLocation/CoreLocation.h>
@@ -18,6 +19,7 @@
 @property (nonatomic, strong, readonly) MPPersistenceController *persistenceController;
 @property (nonatomic, strong, readonly) MPStateMachine *stateMachine;
 @property (nonatomic, strong, readonly) MPKitContainer *kitContainer;
+@property (nonatomic, strong, nonnull) MPBackendController *backendController;
 
 @end
 
@@ -92,6 +94,7 @@
     [stateMachine configureRampPercentage:_configuration[kMPRemoteConfigRampKey]];
     [stateMachine configureTriggers:_configuration[kMPRemoteConfigTriggerKey]];
     [stateMachine configureRestrictIDFA:_configuration[kMPRemoteConfigRestrictIDFA]];
+    [stateMachine configureAliasMaxWindow:_configuration[kMPRemoteConfigAliasMaxWindow]];
     stateMachine.allowASR = [_configuration[kMPRemoteConfigAllowASR] boolValue];
         
     // Exception handling
@@ -107,7 +110,7 @@
     // Session timeout
     NSNumber *auxNumber = _configuration[kMPRemoteConfigSessionTimeoutKey];
     if (auxNumber != nil) {
-        [MParticle sharedInstance].sessionTimeout = [auxNumber doubleValue];
+        [MParticle sharedInstance].backendController.sessionTimeout = [auxNumber doubleValue];
     }
     
 #if TARGET_OS_IOS == 1
@@ -146,12 +149,6 @@
 #pragma mark Private methods
 
 #pragma mark Public class methods
-+ (void)save:(nonnull MPResponseConfig *)responseConfig eTag:(nonnull NSString *)eTag {
-    if (responseConfig && responseConfig.configuration) {
-        [[MPIUserDefaults standardUserDefaults] setConfiguration:responseConfig.configuration andETag:eTag];
-    }
-}
-
 + (nullable MPResponseConfig *)restore {
     NSDictionary *configuration = [[MPIUserDefaults standardUserDefaults] getConfiguration];
     MPResponseConfig *responseConfig = [[MPResponseConfig alloc] initWithConfiguration:configuration dataReceivedFromServer:NO];

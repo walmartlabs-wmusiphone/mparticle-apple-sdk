@@ -30,17 +30,17 @@ using namespace std;
 @interface MPUploadBuilder() {
     NSMutableDictionary<NSString *, id> *uploadDictionary;
     BOOL containsOptOutMessage;
+    NSString *dPId;
+    NSNumber *dPVersion;
 }
 
 @end
 
 @implementation MPUploadBuilder
 
-- (nonnull instancetype)initWithMpid: (nonnull NSNumber *) mpid sessionId:(nullable NSNumber *)sessionId messages:(nonnull NSArray<MPMessage *> *)messages sessionTimeout:(NSTimeInterval)sessionTimeout uploadInterval:(NSTimeInterval)uploadInterval {
-    NSAssert(messages, @"Messages cannot be nil.");
-    
+- (nonnull instancetype)initWithMpid: (nonnull NSNumber *) mpid sessionId:(nullable NSNumber *)sessionId messages:(nonnull NSArray<MPMessage *> *)messages sessionTimeout:(NSTimeInterval)sessionTimeout uploadInterval:(NSTimeInterval)uploadInterval dataPlanId:(nullable NSString *)dataPlanId dataPlanVersion:(nullable NSNumber *)dataPlanVersion {
     self = [super init];
-    if (!self || !messages) {
+    if (!self || !messages || messages.count == 0) {
         return nil;
     }
     
@@ -52,15 +52,17 @@ using namespace std;
     _preparedMessageIds = [[NSMutableArray alloc] initWithCapacity:numberOfMessages];
 
     [messages enumerateObjectsUsingBlock:^(MPMessage *message, NSUInteger idx, BOOL *stop) {
-        if ([message.messageType isEqualToString:[NSString stringWithCString:mParticle::MessageTypeName::nameForMessageType(static_cast<mParticle::MessageType>(MPMessageTypeOptOut)).c_str() encoding:NSUTF8StringEncoding]]) {
-            self->containsOptOutMessage = YES;
-        }
-        
-        [self->_preparedMessageIds addObject:@(message.messageId)];
-        
-        NSDictionary *messageDictionaryRepresentation = [message dictionaryRepresentation];
-        if (messageDictionaryRepresentation) {
-            [messageDictionaries addObject:messageDictionaryRepresentation];
+        if (message != nil && (NSNull *)message != [NSNull null]) {
+            if ([message.messageType isEqualToString:kMPMessageTypeStringOptOut]) {
+                self->containsOptOutMessage = YES;
+            }
+            
+            [self->_preparedMessageIds addObject:@(message.messageId)];
+            
+            NSDictionary *messageDictionaryRepresentation = [message dictionaryRepresentation];
+            if (messageDictionaryRepresentation) {
+                [messageDictionaries addObject:messageDictionaryRepresentation];
+            }
         }
     }];
     
@@ -73,10 +75,26 @@ using namespace std;
     
     MPStateMachine *stateMachine = [MParticle sharedInstance].stateMachine;
     
-    uploadDictionary = [@{kMPOptOutKey:@(stateMachine.optOut),
-                          kMPUploadIntervalKey:@(uploadInterval),
-                          kMPLifeTimeValueKey:ltv}
-                        mutableCopy];
+    uploadDictionary = [@{
+        kMPOptOutKey:@(stateMachine.optOut),
+        kMPUploadIntervalKey:@(uploadInterval),
+        kMPLifeTimeValueKey:ltv
+    } mutableCopy];
+    
+    if (dataPlanId != nil) {
+        NSMutableDictionary<NSString *, id> *dataPlanDictionary = [@{
+        } mutableCopy];
+        
+        dataPlanDictionary[kMPDataPlanIdKey] = dataPlanId;
+        dPId = dataPlanId;
+        
+        if (dataPlanVersion != nil) {
+            dataPlanDictionary[kMPDataPlanVersionKey] = dataPlanVersion;
+            dPVersion = dataPlanVersion;
+        }
+        
+        uploadDictionary[kMPContextKey] = @{kMPDataPlanKey:dataPlanDictionary};
+    }
 
     if (messageDictionaries.count > 0) {
         uploadDictionary[kMPMessagesKey] = messageDictionaries;
@@ -114,13 +132,13 @@ using namespace std;
 }
 
 #pragma mark Public class methods
-+ (nonnull MPUploadBuilder *)newBuilderWithMpid: (nonnull NSNumber *) mpid messages:(nonnull NSArray<MPMessage *> *)messages uploadInterval:(NSTimeInterval)uploadInterval {
-    MPUploadBuilder *uploadBuilder = [[MPUploadBuilder alloc] initWithMpid:mpid sessionId:nil messages:messages sessionTimeout:0 uploadInterval:uploadInterval];
++ (nonnull MPUploadBuilder *)newBuilderWithMpid: (nonnull NSNumber *) mpid messages:(nonnull NSArray<MPMessage *> *)messages uploadInterval:(NSTimeInterval)uploadInterval dataPlanId:(nullable NSString *)dataPlanId dataPlanVersion:(nullable NSNumber *)dataPlanVersion{
+    MPUploadBuilder *uploadBuilder = [[MPUploadBuilder alloc] initWithMpid:mpid sessionId:nil messages:messages sessionTimeout:0 uploadInterval:uploadInterval dataPlanId:dataPlanId dataPlanVersion:dataPlanVersion];
     return uploadBuilder;
 }
 
-+ (nonnull MPUploadBuilder *)newBuilderWithMpid: (nonnull NSNumber *) mpid sessionId:(nullable NSNumber *)sessionId messages:(nonnull NSArray<MPMessage *> *)messages sessionTimeout:(NSTimeInterval)sessionTimeout uploadInterval:(NSTimeInterval)uploadInterval {
-    MPUploadBuilder *uploadBuilder = [[MPUploadBuilder alloc] initWithMpid:mpid sessionId:sessionId messages:messages sessionTimeout:sessionTimeout uploadInterval:uploadInterval];
++ (nonnull MPUploadBuilder *)newBuilderWithMpid: (nonnull NSNumber *) mpid sessionId:(nullable NSNumber *)sessionId messages:(nonnull NSArray<MPMessage *> *)messages sessionTimeout:(NSTimeInterval)sessionTimeout uploadInterval:(NSTimeInterval)uploadInterval dataPlanId:(nullable NSString *)dataPlanId dataPlanVersion:(nullable NSNumber *)dataPlanVersion {
+    MPUploadBuilder *uploadBuilder = [[MPUploadBuilder alloc] initWithMpid:mpid sessionId:sessionId messages:messages sessionTimeout:sessionTimeout uploadInterval:uploadInterval dataPlanId:dataPlanId dataPlanVersion:dataPlanVersion];
     return uploadBuilder;
 }
 
@@ -194,7 +212,7 @@ using namespace std;
     }
     
     
-    MPUpload *upload = [[MPUpload alloc] initWithSessionId:_sessionId uploadDictionary:uploadDictionary];
+    MPUpload *upload = [[MPUpload alloc] initWithSessionId:_sessionId uploadDictionary:uploadDictionary dataPlanId:dPId dataPlanVersion:dPVersion];
     upload.containsOptOutMessage = containsOptOutMessage;
     completionHandler(upload);
 }

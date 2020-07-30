@@ -2,7 +2,7 @@
 #import <mach/mach.h>
 #import "MPStateMachine.h"
 #import "MPApplication.h"
-#import "MParticle.h"
+#import "mParticle.h"
 
 #if TARGET_OS_IOS == 1
     #import <CoreLocation/CoreLocation.h>
@@ -128,6 +128,9 @@ NSString *const kMPStateFreeDiskSpaceKey = @"fds";
             
         case MParticleNetworkStatusNotReachable:
             dataConnectionStatus = kDataConnectionOffline;
+            break;
+            
+        default:
             break;
     }
 

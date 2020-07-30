@@ -12,6 +12,8 @@
 #import "MPIdentityApiManager.h"
 #import "MPKitContainer.h"
 #import "MPPersistenceController.h"
+#import "MPStateMachine.h"
+#import "MPIUserDefaults.h"
 
 typedef NS_ENUM(NSUInteger, MPIdentityRequestType) {
     MPIdentityRequestIdentify = 0,
@@ -38,6 +40,7 @@ typedef NS_ENUM(NSUInteger, MPIdentityRequestType) {
 
 - (void)onIdentityRequestComplete:(MPIdentityApiRequest *)request identityRequestType:(MPIdentityRequestType)identityRequestType httpResponse:(MPIdentityHTTPSuccessResponse *) httpResponse completion:(MPIdentityApiResultCallback)completion error: (NSError *) error;
 - (void)onModifyRequestComplete:(MPIdentityApiRequest *)request httpResponse:(MPIdentityHTTPModifySuccessResponse *) httpResponse completion:(MPModifyApiResultCallback)completion error: (NSError *) error;
+- (NSArray<MParticleUser *> *)sortedUserArrayByLastSeen:(NSMutableArray<MParticleUser *> *)userArray;
 @end
     
 @interface MPNetworkCommunication ()
@@ -60,6 +63,12 @@ typedef NS_ENUM(NSUInteger, MPIdentityRequestType) {
 
 @end
 
+@interface MPIdentityApiRequest ()
+
+- (NSDictionary<NSString *, id> *)dictionaryRepresentation;
+
+@end
+
 @implementation MPIdentityTests
 
 - (void)setUp {
@@ -76,6 +85,15 @@ typedef NS_ENUM(NSUInteger, MPIdentityRequestType) {
     [request setUserIdentity:@"other id 2" identityType:MPUserIdentityOther2];
     [request setUserIdentity:@"other id 3" identityType:MPUserIdentityOther3];
     [request setUserIdentity:@"other id 4" identityType:MPUserIdentityOther4];
+    [request setUserIdentity:@"other id 5" identityType:MPUserIdentityOther5];
+    [request setUserIdentity:@"other id 6" identityType:MPUserIdentityOther6];
+    [request setUserIdentity:@"other id 7" identityType:MPUserIdentityOther7];
+    [request setUserIdentity:@"other id 8" identityType:MPUserIdentityOther8];
+    [request setUserIdentity:@"other id 9" identityType:MPUserIdentityOther9];
+    [request setUserIdentity:@"other id 10" identityType:MPUserIdentityOther10];
+    [request setUserIdentity:@"mobile number" identityType:MPUserIdentityMobileNumber];
+    [request setUserIdentity:@"phone number 2" identityType:MPUserIdentityPhoneNumber2];
+    [request setUserIdentity:@"phone number 3" identityType:MPUserIdentityPhoneNumber3];
     
     MPIdentityHTTPIdentities *httpIdentities = [[MPIdentityHTTPIdentities alloc] initWithIdentities:request.userIdentities];
     
@@ -83,6 +101,15 @@ typedef NS_ENUM(NSUInteger, MPIdentityRequestType) {
     XCTAssertEqual(@"other id 2", httpIdentities.other2);
     XCTAssertEqual(@"other id 3", httpIdentities.other3);
     XCTAssertEqual(@"other id 4", httpIdentities.other4);
+    XCTAssertEqual(@"other id 5", httpIdentities.other5);
+    XCTAssertEqual(@"other id 6", httpIdentities.other6);
+    XCTAssertEqual(@"other id 7", httpIdentities.other7);
+    XCTAssertEqual(@"other id 8", httpIdentities.other8);
+    XCTAssertEqual(@"other id 9", httpIdentities.other9);
+    XCTAssertEqual(@"other id 10", httpIdentities.other10);
+    XCTAssertEqual(@"mobile number", httpIdentities.mobileNumber);
+    XCTAssertEqual(@"phone number 2", httpIdentities.phoneNumber2);
+    XCTAssertEqual(@"phone number 3", httpIdentities.phoneNumber3);
 }
 
 - (void)testNoEmptyModifyRequests {
@@ -552,4 +579,152 @@ typedef NS_ENUM(NSUInteger, MPIdentityRequestType) {
     [mockManager verifyWithDelay:0.2];
 }
 
+- (void)testLastSeenSorting {
+    MParticleUser *user1 = [[MParticleUser alloc] init];
+    MParticleUser *user2 = [[MParticleUser alloc] init];
+    MParticleUser *user3 = [[MParticleUser alloc] init];
+    MParticleUser *userMock1 = OCMPartialMock(user1);
+    MParticleUser *userMock2 = OCMPartialMock(user2);
+    MParticleUser *userMock3 = OCMPartialMock(user3);
+    
+    OCMStub([userMock1 lastSeen]).andReturn([NSDate dateWithTimeIntervalSinceNow:-20]);
+    OCMStub([userMock2 lastSeen]).andReturn([NSDate dateWithTimeIntervalSinceNow:-30]);
+    OCMStub([userMock3 lastSeen]).andReturn([NSDate dateWithTimeIntervalSinceNow:-10]);
+    
+    MPIdentityApi *identity = [[MPIdentityApi alloc] init];
+    NSMutableArray<MParticleUser *> *userArray = @[userMock1, userMock2, userMock3].mutableCopy;
+    NSArray<MParticleUser *> *resultArray = [identity sortedUserArrayByLastSeen:userArray];
+    NSArray<MParticleUser *> *expectedResult = @[userMock3, userMock1, userMock2];
+    XCTAssertEqualObjects(resultArray, expectedResult);
+}
+
+- (void)testAliasNullUsers {
+    MPAliasRequest *request = [MPAliasRequest requestWithSourceUser:(id _Nonnull)nil destinationUser:(id _Nonnull)nil];
+    BOOL result = [MParticle.sharedInstance.identity aliasUsers:request];
+    XCTAssertFalse(result);
+}
+
+- (void)testAliasOneNullUser {
+    MParticleUser *user = [[MParticleUser alloc] init];
+    MPAliasRequest *request = [MPAliasRequest requestWithSourceUser:user destinationUser:(id _Nonnull)nil];
+    BOOL result = [MParticle.sharedInstance.identity aliasUsers:request];
+    XCTAssertFalse(result);
+    
+    request = [MPAliasRequest requestWithSourceUser:(id _Nonnull)nil destinationUser:user];
+    result = [MParticle.sharedInstance.identity aliasUsers:request];
+    XCTAssertFalse(result);
+}
+
+- (void)testAliasZeroUserId {
+    MParticleUser *user = [[MParticleUser alloc] init];
+    user.userId = @0;
+    MParticleUser *user2 = [[MParticleUser alloc] init];
+    user2.userId = @0;
+    MPAliasRequest *request = [MPAliasRequest requestWithSourceUser:user destinationUser:user2];
+    BOOL result = [MParticle.sharedInstance.identity aliasUsers:request];
+    XCTAssertFalse(result);
+}
+
+- (void)testAliasAlternateBadUserIds {
+    NSNumber *mpid1 = nil;
+    NSNumber *mpid2 = nil;
+    NSDate *startTime = [NSDate dateWithTimeIntervalSinceNow:-30];
+    NSDate *endTime = [NSDate date];
+    MPAliasRequest *request = [MPAliasRequest requestWithSourceMPID:mpid1 destinationMPID:mpid2 startTime:startTime endTime:endTime];
+    BOOL result = [MParticle.sharedInstance.identity aliasUsers:request];
+    XCTAssertFalse(result);
+    
+    mpid1 = @0;
+    mpid2 = @0;
+    request = [MPAliasRequest requestWithSourceMPID:mpid1 destinationMPID:mpid2 startTime:startTime endTime:endTime];
+    result = [MParticle.sharedInstance.identity aliasUsers:request];
+    XCTAssertFalse(result);
+}
+
+- (void)testAliasNilDates {
+    NSNumber *mpid1 = @1;
+    NSNumber *mpid2 = @2;
+    NSDate *startTime = nil;
+    NSDate *endTime = nil;
+    MPAliasRequest *request = [MPAliasRequest requestWithSourceMPID:mpid1 destinationMPID:mpid2 startTime:startTime endTime:endTime];
+    BOOL result = [MParticle.sharedInstance.identity aliasUsers:request];
+    XCTAssertFalse(result);
+}
+
+- (void)testAliasDatesReversed {
+    NSNumber *mpid1 = @1;
+    NSNumber *mpid2 = @2;
+    NSDate *startTime = [NSDate dateWithTimeIntervalSince1970:200];
+    NSDate *endTime = [NSDate dateWithTimeIntervalSince1970:100];
+    MPAliasRequest *request = [MPAliasRequest requestWithSourceMPID:mpid1 destinationMPID:mpid2 startTime:startTime endTime:endTime];
+    BOOL result = [MParticle.sharedInstance.identity aliasUsers:request];
+    XCTAssertFalse(result);
+}
+
+- (void)testAliasValidData {
+    NSNumber *mpid1 = @1;
+    NSNumber *mpid2 = @2;
+    NSDate *startTime = [NSDate dateWithTimeIntervalSince1970:100];
+    NSDate *endTime = [NSDate dateWithTimeIntervalSince1970:200];
+    MPAliasRequest *request = [MPAliasRequest requestWithSourceMPID:mpid1 destinationMPID:mpid2 startTime:startTime endTime:endTime];
+    BOOL result = [MParticle.sharedInstance.identity aliasUsers:request];
+    XCTAssertTrue(result);
+}
+
+- (void)testAliasHTTPRepresentation {
+    NSNumber *mpid1 = @1;
+    NSNumber *mpid2 = @2;
+    NSDate *startTime = [NSDate dateWithTimeIntervalSince1970:100];
+    NSDate *endTime = [NSDate dateWithTimeIntervalSince1970:200];
+    MPAliasRequest *request = [MPAliasRequest requestWithSourceMPID:mpid1 destinationMPID:mpid2 startTime:startTime endTime:endTime];
+    MPIdentityHTTPAliasRequest *httpRequest = [[MPIdentityHTTPAliasRequest alloc] initWithIdentityApiAliasRequest:request];
+    NSDictionary *dictionary = httpRequest.dictionaryRepresentation;
+    XCTAssertNil(dictionary[@"client_sdk"]);
+    XCTAssertNil(dictionary[@"request_timestamp_ms"]);
+    XCTAssertEqualObjects(dictionary[@"request_type"], @"alias");
+    XCTAssertEqualObjects(dictionary[@"data"][@"source_mpid"], @1);
+    XCTAssertEqualObjects(dictionary[@"data"][@"destination_mpid"], @2);
+    XCTAssertEqualObjects(dictionary[@"data"][@"start_unixtime_ms"], @100000);
+    XCTAssertEqualObjects(dictionary[@"data"][@"end_unixtime_ms"], @200000);
+    XCTAssertNotNil(dictionary[@"request_id"]);
+}
+
+- (void)testDictionaryRepresentation {
+    MPIUserDefaults *userDefaults = [MPIUserDefaults standardUserDefaults];
+    NSData *testDeviceToken = [@"<000000000000000000000000000000>" dataUsingEncoding:NSUTF8StringEncoding];
+    userDefaults[kMPDeviceTokenKey] = testDeviceToken;
+    
+    MPIdentityApiRequest *request = [[MPIdentityApiRequest alloc] init];
+    [request setUserIdentity:@"other id" identityType:MPUserIdentityOther];
+    [request setUserIdentity:@"other id 2" identityType:MPUserIdentityOther2];
+    [request setUserIdentity:@"other id 3" identityType:MPUserIdentityOther3];
+    [request setUserIdentity:@"other id 4" identityType:MPUserIdentityOther4];
+    [request setUserIdentity:@"other id 5" identityType:MPUserIdentityOther5];
+    [request setUserIdentity:@"other id 6" identityType:MPUserIdentityOther6];
+    [request setUserIdentity:@"other id 7" identityType:MPUserIdentityOther7];
+    [request setUserIdentity:@"other id 8" identityType:MPUserIdentityOther8];
+    [request setUserIdentity:@"other id 9" identityType:MPUserIdentityOther9];
+    [request setUserIdentity:@"other id 10" identityType:MPUserIdentityOther10];
+    [request setUserIdentity:@"mobile number" identityType:MPUserIdentityMobileNumber];
+    [request setUserIdentity:@"phone number 2" identityType:MPUserIdentityPhoneNumber2];
+    [request setUserIdentity:@"phone number 3" identityType:MPUserIdentityPhoneNumber3];
+    
+    NSDictionary *dictionary = request.dictionaryRepresentation;
+#if TARGET_OS_IOS == 1
+    XCTAssertEqualObjects(dictionary[@"push_token"], @"3c3030303030303030303030303030303030303030303030303030303030303e");
+#endif
+    XCTAssertEqualObjects(dictionary[@"other"], @"other id");
+    XCTAssertEqualObjects(dictionary[@"other2"], @"other id 2");
+    XCTAssertEqualObjects(dictionary[@"other3"], @"other id 3");
+    XCTAssertEqualObjects(dictionary[@"other4"], @"other id 4");
+    XCTAssertEqualObjects(dictionary[@"other5"], @"other id 5");
+    XCTAssertEqualObjects(dictionary[@"other6"], @"other id 6");
+    XCTAssertEqualObjects(dictionary[@"other7"], @"other id 7");
+    XCTAssertEqualObjects(dictionary[@"other8"], @"other id 8");
+    XCTAssertEqualObjects(dictionary[@"other9"], @"other id 9");
+    XCTAssertEqualObjects(dictionary[@"other10"], @"other id 10");
+    XCTAssertEqualObjects(dictionary[@"mobile_number"], @"mobile number");
+    XCTAssertEqualObjects(dictionary[@"phone_number_2"], @"phone number 2");
+    XCTAssertEqualObjects(dictionary[@"phone_number_3"], @"phone number 3");
+}
 @end

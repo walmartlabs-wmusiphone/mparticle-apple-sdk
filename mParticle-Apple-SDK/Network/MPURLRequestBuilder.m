@@ -8,15 +8,15 @@
 #import "MPExtensionProtocol.h"
 #import "MPILogger.h"
 #import "MPApplication.h"
+#import "MParticleWebView.h"
 
 static NSDateFormatter *RFC1123DateFormatter;
-static NSTimeInterval requestTimeout = 30.0;
-static NSString *mpUserAgent = nil;
 
 @interface MParticle ()
 
 @property (nonatomic, strong, readonly) MPStateMachine *stateMachine;
 @property (nonatomic, strong, readonly) MPKitContainer *kitContainer;
+@property (nonatomic, strong, readonly) MParticleWebView *webView;
 
 @end
     
@@ -76,65 +76,11 @@ static NSString *mpUserAgent = nil;
 }
 
 - (NSString *)userAgent {
-    NSString *defaultUserAgent = [NSString stringWithFormat:@"mParticle Apple SDK/%@", MParticle.sharedInstance.version];
-    
-    if (!mpUserAgent) {
-        if (MParticle.sharedInstance.customUserAgent != nil) {
-            mpUserAgent = MParticle.sharedInstance.customUserAgent;
-#if TARGET_OS_IOS == 1
-        } else if (MParticle.sharedInstance.collectUserAgent) {
-            NSString *currentSystemVersion = [UIDevice currentDevice].systemVersion;
-            NSString *savedSystemVersion = [MPIUserDefaults standardUserDefaults][kMPUserAgentSystemVersionUserDefaultsKey];
-            if ([currentSystemVersion isEqualToString:savedSystemVersion]) {
-                NSString *savedUserAgent = [MPIUserDefaults standardUserDefaults][kMPUserAgentValueUserDefaultsKey];
-                if (savedUserAgent) {
-                    mpUserAgent = savedUserAgent;
-                    return mpUserAgent;
-                }
-            }
-            
-            dispatch_block_t getUserAgent = ^{
-                if (![MPStateMachine isAppExtension]) {
-                    if ([MPApplication sharedUIApplication].applicationState == UIApplicationStateBackground) {
-                        mpUserAgent = defaultUserAgent;
-                        return;
-                    }
-                }
-
-                @try {
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Wdeprecated-declarations"
-                    UIWebView *webView = [[UIWebView alloc] initWithFrame:CGRectZero];
-#pragma clang diagnostic pop
-                    mpUserAgent = [webView stringByEvaluatingJavaScriptFromString:@"navigator.userAgent"];
-                    NSString *systemVersion = [UIDevice currentDevice].systemVersion;
-                    if (mpUserAgent && systemVersion) {
-                        [MPIUserDefaults standardUserDefaults][kMPUserAgentValueUserDefaultsKey] = mpUserAgent;
-                        [MPIUserDefaults standardUserDefaults][kMPUserAgentSystemVersionUserDefaultsKey] = systemVersion;
-                        [[MPIUserDefaults standardUserDefaults] synchronize];
-                    }
-                } @catch (NSException *exception) {
-                    mpUserAgent = nil;
-                    MPILogError(@"Exception obtaining the user agent: %@", exception.reason);
-                }
-            };
-            
-            if ([NSThread isMainThread]) {
-                getUserAgent();
-            } else {
-                dispatch_sync(dispatch_get_main_queue(), getUserAgent);
-            }
-#endif
-        } else {
-            return defaultUserAgent;
-        }
+    BOOL isConfig = [[_url relativePath] rangeOfString:@"/config"].location != NSNotFound;
+    if (isConfig) {
+        return MParticle.sharedInstance.webView.originalDefaultAgent;
     }
-    
-    return mpUserAgent;
-}
-
-- (void)setUserAgent:(NSString *)userAgent {
-    mpUserAgent = userAgent;
+    return MParticle.sharedInstance.webView.userAgent;
 }
 
 #pragma mark Public class methods
@@ -161,11 +107,7 @@ static NSString *mpUserAgent = nil;
 }
 
 + (NSTimeInterval)requestTimeout {
-    return requestTimeout;
-}
-
-+ (void)tryToCaptureUserAgent {
-    [[[MPURLRequestBuilder alloc] init] userAgent];
+    return NETWORK_REQUEST_MAX_WAIT_SECONDS;
 }
 
 #pragma mark Public instance methods
@@ -191,13 +133,40 @@ static NSString *mpUserAgent = nil;
     return self;
 }
 
+- (NSString *)stringByStrippingPathComponent:(NSString *)path {
+    NSString *adjustedPath = path;
+    NSMutableArray *parts = [[path componentsSeparatedByString:@"/"] mutableCopy];
+    if (parts.count > 1) {
+        [parts removeObjectAtIndex:1];
+        adjustedPath = [parts componentsJoinedByString:@"/"];
+    }
+    return adjustedPath;
+}
+
+- (NSString *)signatureRelativePath:(NSString *)relativePath url:(NSURL *)url {
+    MPNetworkOptions *networkOptions = [MParticle sharedInstance].networkOptions;
+    if (
+        (networkOptions.overridesConfigSubdirectory && networkOptions.configHost &&
+         [url.absoluteString rangeOfString:networkOptions.configHost].location != NSNotFound) ||
+        (networkOptions.overridesEventsSubdirectory && networkOptions.eventsHost &&
+         [url.absoluteString rangeOfString:networkOptions.eventsHost].location != NSNotFound) ||
+        (networkOptions.overridesIdentitySubdirectory && networkOptions.identityHost &&
+         [url.absoluteString rangeOfString:networkOptions.identityHost].location != NSNotFound) ||
+        (networkOptions.overridesAliasSubdirectory && networkOptions.aliasHost &&
+         [url.absoluteString rangeOfString:networkOptions.aliasHost].location != NSNotFound)
+        ) {
+        return [self stringByStrippingPathComponent:relativePath];
+    }
+    return relativePath;
+}
+
 - (NSMutableURLRequest *)build {
     NSMutableURLRequest *urlRequest = [NSMutableURLRequest requestWithURL:_url];
     [urlRequest setCachePolicy:NSURLRequestReloadIgnoringLocalCacheData];
-    [urlRequest setTimeoutInterval:requestTimeout];
+    [urlRequest setTimeoutInterval:[MPURLRequestBuilder requestTimeout]];
     [urlRequest setHTTPMethod:_httpMethod];
 
-    BOOL isIdentityRequest = [urlRequest.URL.host rangeOfString:@"identity"].location != NSNotFound || [urlRequest.URL.host isEqualToString:[MParticle sharedInstance].networkOptions.identityHost];
+    BOOL isIdentityRequest = [urlRequest.URL.accessibilityHint isEqualToString:@"identity"];
     
     if (SDKURLRequest || isIdentityRequest) {
         NSString *deviceLocale = [[NSLocale autoupdatingCurrentLocale] localeIdentifier];
@@ -212,6 +181,8 @@ static NSString *mpUserAgent = nil;
         NSString *secondsFromGMT = [NSString stringWithFormat:@"%ld", (unsigned long)[timeZone secondsFromGMT]];
         NSRange range;
         BOOL containsMessage = _message != nil;
+        
+        relativePath = [self signatureRelativePath:relativePath url:_url];
         
         if (isIdentityRequest) { // /identify, /login, /logout, /<mpid>/modify
             contentType = @"application/json";

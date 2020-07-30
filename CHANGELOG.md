@@ -1,5 +1,374 @@
 # mParticle Apple SDK CHANGELOG
 
+## 7.16.2
+
+### Core
+
+- Fix Device Token Format
+
+This resolves an issue on iOS 13 where an invalid device token could be sent.
+
+### Kits
+
+- Adobe - Update to Media SDK 1.3.0
+
+## 7.16.1
+
+### Core
+
+- None
+
+### Kits
+
+- AppsFlyer - Update to AppsFlyer SDK 5.4
+- Branch - Make CommerceEvent customAttributes Strings Values Only
+- Clevertap - Update to CleverTap SDK 3.8.0
+
+## 7.16.0
+
+### Core
+
+- Add other5-10 and phone number identity types
+
+### Kits
+
+- Appboy - Add type detection
+- Optimizely - Remove Carthage build phase
+- Branch - Include Custom Attributes for Commerce Events
+
+## 7.15.11
+
+### Core
+
+This release adds support for the new [Blueshift](https://blueshift.com/) kit!
+
+### Kits
+
+- AppsFlyer - Update Carthage binary manifest URL
+
+## 7.15.10
+
+### Core
+
+This release fixes a bug in the processing of consent filtering rules in cases when no consent state has been set.
+
+### Kits
+
+- Iterable - Integrate Iterable SDK 6.2
+- Appboy - Expose ABKURLDelegate
+- Radar - Update to Radar SDK 3.0
+
+## 7.15.9
+
+### Core
+
+- Guard against NSNull properties in identity requests
+- Add MPUploadBuilder precautions
+
+### Kits
+
+- Adjust - Update Adjust SDK to 4.20.0
+- Appboy - Support ABKURLDelegate
+- Apptimize - Update Apptimize SDK to 3.0
+- Branch - Update docs link, Branch SDK to 0.33.0
+
+## 7.15.8
+
+### Core
+
+- Fix CocoaPods warning
+
+### Kits
+
+- None
+
+## 7.15.7
+
+### Core
+
+- Add support for Swift Package Manager
+- Cleanup deprecated UIApplication calls
+
+### Kits
+
+- Optimizely - Fix constant naming
+
+## 7.15.6
+
+### Core
+
+- Guard against NSNull values in events from webview
+
+### Kits
+
+- Optimizely - Add support for other ids
+
+## 7.15.5
+
+### Core
+
+- None
+
+### Kits
+
+- Appboy - Update transaction attributes
+- Apptentive - Guard against non-product-action commerce events
+- Optimizely - Update to Optimizely Swift SDK
+
+## 7.15.4
+
+### Core
+
+- Fix bug where session start timestamps included time spent waiting for message queue.
+
+### Kits
+
+- Appboy - Fix dob parsing Bug
+
+## 7.15.3
+
+### Core
+
+- Fix bug where data plan id and version would be sent as zero if not specified
+
+### Kits
+
+- None
+
+## 7.15.2
+
+### Core
+
+- Use default URL path to generate x-mp-signature
+
+### Kits
+
+- Kochava - Add support for enhanced deeplinking
+
+## 7.15.1
+
+### Core
+
+**This release fixes a critical issue in 7.15.0 where invalid modify requests could be created by the SDK.**
+
+### Kits
+
+- AppsFlyer - Fix custom attribute being set incorrectly in commerce event
+
+## 7.15.0
+
+### Core
+
+This release introduces support for compliance with the California Consumer Privacy Act (CCPA).
+
+### Kits
+
+- Appboy - Respect dob user attribute
+
+## 7.14.0
+
+This release fixes an issue where kit dependencies on the core SDK were not properly updated by the release automation.
+
+No code changes are included.
+
+## 7.13.0
+
+### Core
+
+This release introduces support for Data Planning!
+
+When initializing the SDK, you can now specify your data plan ID and version in MParticleOptions.
+
+For more details, please see the documentation: https://docs.mparticle.com/guides/data-master/#data-plans
+
+### Kits
+
+- Braze - Respect user identification type in kit config
+- AppsFlyer - Update to AppsFlyer to version 5.0.0
+- Branch - Update Branch to version 0.31.2
+
+## 7.12.7
+
+### Core
+
+This release addresses an issue where the SDK might crash when logging commerce events, if certain recently-updated kits that support commerce are included.
+
+In addition, a change has been included that should improve SDK responsiveness and prevent the SDK
+from inadvertently showing up in unrelated stack traces due to unnecessarily waiting to run on
+the main queue when processing network responses.
+
+### Kits
+
+- Adobe - Update to prevent multiple defined symbol linker error
+
+## 7.12.6
+
+### Core
+
+This release includes a number of targeted bug fixes to the SDK.
+
+- Set device token on message queue
+- Add handling for webview commerce attributes
+- Exclude config endpoint from upload retry logic
+- Deprecate `logCommerceEvent:` method--please call `logEvent:` instead.
+
+### Kits
+
+- Adobe - Update for Media SDK beta 3
+
+## 7.12.5
+
+### Core
+
+#### User Agent Collection
+
+This release resolves an issue where user agent collection may not work correctly for certain app configurations.
+
+This is due to a behavior change by Apple that appears to be isolated to Swift projects, where the application state within didFinishLaunching is set to background instead of inactive.
+
+Also included is a change to allow user agent collection in iOS extensions.
+
+### Kits
+
+- None
+
+## 7.12.4
+
+### Core
+
+#### User Agent Collection
+- This release restores support for automatic collection of browser user agent by the SDK.
+
+- This release also deprecates the Cart API. The Cart API was originally designed to maintain and hold on to product objects to be appended automatically to Commerce events. Over time we have found it to be better practice for the hosting app to maintain shopping cart state rather than the mParticle SDK. In place of the Cart API, please include all of the applicable product objects with each Commerce event.
+
+### Kits
+
+- Updates for iOS 13
+
+## 7.12.3
+
+- This release fixes a typo that caused `MPEvent` attributes to return nil if the deprecated `info` property was used. Due to our kits not yet having been updated to use the new property name, this was resulting in empty event attributes dictionaries being forwarded to kits.
+
+## 7.12.2
+
+- This release fixes Commerce events collected over the WKWebView bridge. Previously, the mapping of Web SDK-defined product-actions to Apple SDK product-actions was incorrect.
+
+## 7.12.1
+
+### Core
+
+- This release rolls back a change to the `MPEventType` enum that caused problems with Swift compatibility and adds Swift unit tests to ensure this API remains stable going forward.
+
+- Guard against potential crash if null product array is received from JS webview integration
+
+### Kits
+
+- None
+
+## 7.12.0
+
+## mParticle Media SDK
+
+This release introduces support for the [mParticle Apple Media SDK](https://github.com/mParticle/mparticle-apple-media-sdk)!
+
+Media tracking capabilities have been added by creating a separate module that you can add to your project in addition to the core SDK.
+
+For more details, see the Media SDK repository: https://github.com/mParticle/mparticle-apple-media-sdk
+
+### Other items
+
+- You may notice that our main `MParticle#logEvent:` API has been changed to take a different type of parameter. This should not affect your code, except you can now pass commerce events to that method in addition to `MPEvent` objects.
+
+- This release also includes a change to improve session management in cases where the background timer was not allowed to run by the OS.
+
+## 7.11.0
+
+## iOS 13 Official Support
+### Push Registration
+If you are collecting push registration tokens and using them for server-side integrations, this is a *critical update*. If you are only registering for push via kits (such as Braze), you can use iOS Braze kit 7.10.7 or later with iOS 13.
+
+### UIWebView and User Agent Collection
+Support for UIWebView has been removed. User agent collection has been disabled in this release. You may manually supply the user agent to the MParticleOptions object on SDK initialization if required.
+
+## 7.10.5
+
+## Core
+
+- Ensure user attributes are filtered on FilteredMParticleUser
+- Simplify APIs and options used to start the SDK
+
+## Kits
+
+- Braze - Update API usage for endpoint and location
+- Firebase - Standardize custom attribute keys and values
+- Adobe - Fix linker error if modules are disabled
+
+## 7.10.4
+
+## Critical Bug Fixes
+
+This release fixes a critical bug in SDK versions 7.8.6 and later where uploads could be prematurely deleted if the network request failed due to the device being offline.
+
+This release also fixes a crash while migrating the SDK's internal database. The crash occurs for apps that had opted into manual-session tracking in a previous version of the SDK, and then upgraded to the latest version of the SDK.
+
+## Core
+
+- Bugfix for upload response processing
+- Fix session id migration for messages and uploads
+
+## Kits
+
+- Appboy - Update endpoint override logic
+
+## 7.10.2
+
+## Core
+
+Note: To ensure proper validation, this release updates the userIdentities property of MPIdentityApiRequest to be an immutable dictionary.
+
+If you happened to be modifying this dictionary directly, you will need to update your code to call setUserIdentity:identityType: instead.
+
+- Don't allow direct mutation of request identities
+- Guard against nil events
+
+## Kits
+
+- Button - Update kit to use Button Merchant Library
+
+## 7.10.1
+
+## Core
+
+- Update for Xcode 11
+- Respect max age expiration for configuration requests
+
+## Kits
+
+- Update Urban Airship import statements
+
+## 7.10.0
+
+This release introduces support for user alias requests.
+
+Aliasing allows you to copy data from one user to another, typically for the purpose of building audiences that include actions a user may have taken before they logged in.
+
+This release also adds properties to a user that indicate when this user was first or last seen by the SDK. Getting the list of all users known to the SDK now sorts by the last time each user was seen.
+
+## Core
+
+- Add support for sending user alias requests
+- Move sessionTimeout to MParticleOptions
+- Guard against unexpected radio technology values
+- Implement Inspector protocol
+- Reachability improvements
+
+## Kits
+
+- Apptentive - Add ability to delay Apptentive SDK initialization
+- Radar - Minor tracking updates
+
+Minor changes have been made across the kits to bring source indentation and license/readme/podspec files into consistency.
+
 ## 7.9.2
 
 ## Core

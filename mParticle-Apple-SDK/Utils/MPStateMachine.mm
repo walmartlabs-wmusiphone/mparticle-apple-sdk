@@ -24,6 +24,8 @@
 
 NSString *const kCookieDateKey = @"e";
 NSString *const kMinUploadDateKey = @"MinUploadDate";
+NSString *const kMinAliasDateKey = @"MinAliasDate";
+NSString *const kMPStateKey = @"state";
 
 static MPEnvironment runningEnvironment = MPEnvironmentAutoDetect;
 static BOOL runningInBackground = NO;
@@ -51,14 +53,12 @@ static BOOL runningInBackground = NO;
 
 @implementation MPStateMachine
 
-@synthesize consoleLogging = _consoleLogging;
 @synthesize consumerInfo = _consumerInfo;
 @synthesize deviceTokenType = _deviceTokenType;
 @synthesize firstSeenInstallation = _firstSeenInstallation;
 @synthesize installationType = _installationType;
 @synthesize locationTrackingMode = _locationTrackingMode;
 @synthesize logLevel = _logLevel;
-@synthesize minUploadDate = _minUploadDate;
 @synthesize optOut = _optOut;
 @synthesize alwaysTryToCollectIDFA = _alwaysTryToCollectIDFA;
 @synthesize pushNotificationMode = _pushNotificationMode;
@@ -83,7 +83,6 @@ static BOOL runningInBackground = NO;
         _uploadStatus = MPUploadStatusBatch;
         _startTime = [NSDate dateWithTimeIntervalSinceNow:-1];
         _backgrounded = NO;
-        _consoleLogging = MPConsoleLoggingAutoDetect;
         _dataRamped = NO;
         _installationType = MPInstallationTypeAutodetect;
         _launchDate = [NSDate date];
@@ -118,11 +117,6 @@ static BOOL runningInBackground = NO;
                                      object:nil];
             
             [notificationCenter addObserver:strongSelf
-                                   selector:@selector(handleMemoryWarningNotification:)
-                                       name:UIApplicationDidReceiveMemoryWarningNotification
-                                     object:nil];
-            
-            [notificationCenter addObserver:strongSelf
                                    selector:@selector(handleReachabilityChanged:)
                                        name:MParticleReachabilityChangedNotification
                                      object:nil];
@@ -140,8 +134,11 @@ static BOOL runningInBackground = NO;
     [notificationCenter removeObserver:self name:UIApplicationDidEnterBackgroundNotification object:nil];
     [notificationCenter removeObserver:self name:UIApplicationWillEnterForegroundNotification object:nil];
     [notificationCenter removeObserver:self name:UIApplicationWillTerminateNotification object:nil];
-    [notificationCenter removeObserver:self name:UIApplicationDidReceiveMemoryWarningNotification object:nil];
     [notificationCenter removeObserver:self name:MParticleReachabilityChangedNotification object:nil];
+    
+    if (_reachability != nil) {
+        [_reachability stopNotifier];
+    }
 }
 
 #pragma mark Private accessors
@@ -276,17 +273,8 @@ static BOOL runningInBackground = NO;
     [MPApplication updateLastUseDate:_launchDate];
 }
 
-- (void)handleMemoryWarningNotification:(NSNotification *)notification {
-}
-
 - (void)handleReachabilityChanged:(NSNotification *)notification {
-    MParticleReachability *currentReachability = [notification object];
-    
-    if ([currentReachability isKindOfClass:[MParticleReachability class]]) {
-        [self willChangeValueForKey:@"networkStatus"];
-        self.networkStatus = [currentReachability currentReachabilityStatus];
-        [self didChangeValueForKey:@"networkStatus"];
-    }
+    self.networkStatus = [self.reachability currentReachabilityStatus];
 }
 
 #pragma mark Class methods
@@ -350,29 +338,6 @@ static BOOL runningInBackground = NO;
 }
 
 #pragma mark Public accessors
-- (MPConsoleLogging)consoleLogging {
-    if (_consoleLogging != MPConsoleLoggingAutoDetect) {
-        return _consoleLogging;
-    }
-    
-    _consoleLogging = [MPStateMachine environment] == MPEnvironmentProduction ? MPConsoleLoggingSuppress : MPConsoleLoggingDisplay;
-    if (_consoleLogging == MPConsoleLoggingSuppress) {
-        _logLevel = MPILogLevelNone;
-    }
-    
-    return _consoleLogging;
-}
-
-- (void)setConsoleLogging:(MPConsoleLogging)consoleLogging {
-    if (consoleLogging == MPConsoleLoggingSuppress) {
-        _logLevel = MPILogLevelNone;
-    } else if ([MPStateMachine environment] == MPEnvironmentDevelopment && _consoleLogging != MPConsoleLoggingSuppress) {
-        _logLevel = MPILogLevelWarning;
-    }
-    
-    _consoleLogging = consoleLogging;
-}
-
 - (MPConsumerInfo *)consumerInfo {
     if (_consumerInfo) {
         return _consumerInfo;
@@ -389,20 +354,11 @@ static BOOL runningInBackground = NO;
     return _consumerInfo;
 }
 
-- (MPILogLevel)logLevel {
-    @synchronized(self) {
-        return _logLevel;
-    }
-}
-
 - (void)setLogLevel:(MPILogLevel)logLevel {
     @synchronized(self) {
         _logLevel = logLevel;
-        
-        if (logLevel == MPILogLevelNone) {
-            _consoleLogging = MPConsoleLoggingSuppress;
-        }
     }
+    
 }
 
 - (NSString *)deviceTokenType {
@@ -565,38 +521,38 @@ static BOOL runningInBackground = NO;
     });
 }
 
-- (NSDate *)minUploadDate {
-    if (_minUploadDate) {
-        return _minUploadDate;
+- (NSString *)minDefaultsKeyForUploadType:(MPUploadType)uploadType {
+    NSString *defaultsKey = nil;
+    if (uploadType == MPUploadTypeMessage) {
+        defaultsKey = kMinUploadDateKey;
+    } else if (uploadType == MPUploadTypeAlias) {
+        defaultsKey = kMinAliasDateKey;
     }
-    
-    [self willChangeValueForKey:@"minUploadDate"];
-    
-    MPIUserDefaults *userDefaults = [MPIUserDefaults standardUserDefaults];
-    NSDate *minUploadDate = userDefaults[kMinUploadDateKey];
-    if (minUploadDate) {
-        if ([minUploadDate compare:[NSDate date]] == NSOrderedDescending) {
-            _minUploadDate = minUploadDate;
-        } else {
-            _minUploadDate = [NSDate distantPast];
-        }
-    } else {
-        _minUploadDate = [NSDate distantPast];
-    }
-
-    [self didChangeValueForKey:@"minUploadDate"];
-    
-    return _minUploadDate;
+    return defaultsKey;
 }
 
-- (void)setMinUploadDate:(NSDate *)minUploadDate {
-    _minUploadDate = minUploadDate;
-    
+- (NSDate *)minUploadDateForUploadType:(MPUploadType)uploadType {
     MPIUserDefaults *userDefaults = [MPIUserDefaults standardUserDefaults];
+    NSString *defaultsKey = [self minDefaultsKeyForUploadType:uploadType];
+    NSDate *minUploadDate = userDefaults[defaultsKey];
+    if (minUploadDate) {
+        if ([minUploadDate compare:[NSDate date]] == NSOrderedDescending) {
+            return minUploadDate;
+        } else {
+            return [NSDate distantPast];
+        }
+    }
+    
+    return [NSDate distantPast];
+}
+
+- (void)setMinUploadDate:(NSDate *)minUploadDate uploadType:(MPUploadType)uploadType {
+    MPIUserDefaults *userDefaults = [MPIUserDefaults standardUserDefaults];
+    NSString *defaultsKey = [self minDefaultsKeyForUploadType:uploadType];
     if ([minUploadDate compare:[NSDate date]] == NSOrderedDescending) {
-        userDefaults[kMinUploadDateKey] = minUploadDate;
-    } else if (userDefaults[kMinUploadDateKey]) {
-        [userDefaults removeMPObjectForKey:kMinUploadDateKey];
+        userDefaults[defaultsKey] = minUploadDate;
+    } else if (userDefaults[defaultsKey]) {
+        [userDefaults removeMPObjectForKey:defaultsKey];
     }
 }
 
@@ -819,6 +775,13 @@ static BOOL runningInBackground = NO;
         restrictIDFA = @YES;
     }
     self.alwaysTryToCollectIDFA = [restrictIDFA isEqual:@NO];
+}
+
+- (void)configureAliasMaxWindow:(NSNumber *)aliasMaxWindow {
+    if (MPIsNull(aliasMaxWindow)) {
+        aliasMaxWindow = @90;
+    }
+    self.aliasMaxWindow = aliasMaxWindow;
 }
 
 @end

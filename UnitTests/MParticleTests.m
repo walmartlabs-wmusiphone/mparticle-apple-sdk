@@ -5,6 +5,10 @@
 #import "MPSession.h"
 #import "MPBackendController.h"
 #import "OCMock.h"
+#import "MPURLRequestBuilder.h"
+#import "MParticleWebView.h"
+#import "MPPersistenceController.h"
+#import "MPIUserDefaults.h"
 
 @interface MParticle ()
 
@@ -13,11 +17,13 @@
 @property (nonatomic, strong) MPBackendController *backendController;
 - (BOOL)isValidBridgeName:(NSString *)bridgeName;
 - (void)handleWebviewCommand:(NSString *)command dictionary:(NSDictionary *)dictionary;
+@property (nonatomic, strong) MParticleWebView *webView;
 
 @end
 
 @interface MParticleTests : MPBaseTestCase {
     NSNotification *lastNotification;
+    __weak dispatch_block_t testNotificationHandler;
 }
 
 @end
@@ -129,6 +135,10 @@
 
 #if TARGET_OS_IOS == 1
 - (void)testAutoTrackingContentAvail {
+    MPIUserDefaults *userDefaults = [MPIUserDefaults standardUserDefaults];
+    NSData *testDeviceToken = [@"<000000000000000000000000000000>" dataUsingEncoding:NSUTF8StringEncoding];
+    userDefaults[kMPDeviceTokenKey] = testDeviceToken;
+    
     XCTestExpectation *expectation = [self expectationWithDescription:@"async work"];
     MParticle *instance = [MParticle sharedInstance];
     MParticleOptions *options = [MParticleOptions optionsWithKey:@"unit-test-key" secret:@"unit-test-secret"];
@@ -181,14 +191,80 @@
     [self waitForExpectationsWithTimeout:10 handler:nil];
 }
 
+- (void)testOptionsConsentStateInitialNil {
+    XCTestExpectation *expectation = [self expectationWithDescription:@"async work"];
+    MParticle *instance = [MParticle sharedInstance];
+    MParticleOptions *options = [MParticleOptions optionsWithKey:@"unit-test-key"
+    secret:@"unit-test-secret"];
+    MPCCPAConsent *ccpaConsent = [[MPCCPAConsent alloc] init];
+    ccpaConsent.consented = YES;
+    ccpaConsent.document = @"ccpa_consent_agreement_v3";
+    ccpaConsent.timestamp = [[NSDate alloc] init];
+    ccpaConsent.location = @"17 Cherry Tree Lane";
+    ccpaConsent.hardwareId = @"IDFA:a5d934n0-232f-4afc-2e9a-3832d95zc702";
+    
+    MPConsentState *newConsentState = [[MPConsentState alloc] init];
+    [newConsentState setCCPAConsentState:ccpaConsent];
+    [newConsentState setGDPRConsentState:[MParticle sharedInstance].identity.currentUser.consentState.gdprConsentState];
+
+    options.consentState = newConsentState;
+    [instance startWithOptions:options];
+    dispatch_async([MParticle messageQueue], ^{
+        MPConsentState *storedConsentState = [MPPersistenceController consentStateForMpid:[MPPersistenceController mpId]];
+        XCTAssert(storedConsentState.ccpaConsentState.consented);
+        [expectation fulfill];
+    });
+    [self waitForExpectationsWithTimeout:10 handler:nil];
+}
+
+- (void)testOptionsConsentStateInitialSet {
+    MPCCPAConsent *ccpaConsent = [[MPCCPAConsent alloc] init];
+    ccpaConsent.consented = NO;
+    ccpaConsent.document = @"ccpa_consent_agreement_v3";
+    ccpaConsent.timestamp = [[NSDate alloc] init];
+    ccpaConsent.location = @"17 Cherry Tree Lane";
+    ccpaConsent.hardwareId = @"IDFA:a5d934n0-232f-4afc-2e9a-3832d95zc702";
+    
+    MPConsentState *storedConsentState = [[MPConsentState alloc] init];
+    [storedConsentState setCCPAConsentState:ccpaConsent];
+    [storedConsentState setGDPRConsentState:[MParticle sharedInstance].identity.currentUser.consentState.gdprConsentState];
+    [MPPersistenceController setConsentState:storedConsentState forMpid:[MPPersistenceController mpId]];
+    
+    XCTestExpectation *expectation = [self expectationWithDescription:@"async work"];
+    MParticle *instance = [MParticle sharedInstance];
+    MParticleOptions *options = [MParticleOptions optionsWithKey:@"unit-test-key"
+    secret:@"unit-test-secret"];
+    MPCCPAConsent *newCCPAState = [[MPCCPAConsent alloc] init];
+    newCCPAState.consented = YES;
+    newCCPAState.document = @"ccpa_consent_agreement_v3";
+    newCCPAState.timestamp = [[NSDate alloc] init];
+    newCCPAState.location = @"17 Cherry Tree Lane";
+    newCCPAState.hardwareId = @"IDFA:a5d934n0-232f-4afc-2e9a-3832d95zc702";
+    
+    MPConsentState *newConsentState = [[MPConsentState alloc] init];
+    [newConsentState setCCPAConsentState:newCCPAState];
+    [newConsentState setGDPRConsentState:[MParticle sharedInstance].identity.currentUser.consentState.gdprConsentState];
+
+    options.consentState = newConsentState;
+    [instance startWithOptions:options];
+    dispatch_async([MParticle messageQueue], ^{
+        MPConsentState *storedConsentState = [MPPersistenceController consentStateForMpid:[MPPersistenceController mpId]];
+        XCTAssertFalse(storedConsentState.ccpaConsentState.consented);
+        [expectation fulfill];
+    });
+    [self waitForExpectationsWithTimeout:10 handler:nil];
+}
+
 - (void)handleTestSessionStart:(NSNotification *)notification {
     [[NSNotificationCenter defaultCenter] removeObserver:self name:mParticleSessionDidBeginNotification object:nil];
     lastNotification = notification;
+    testNotificationHandler();
 }
 
 - (void)handleTestSessionEnd:(NSNotification *)notification {
     [[NSNotificationCenter defaultCenter] removeObserver:self name:mParticleSessionDidEndNotification object:nil];
     lastNotification = notification;
+    testNotificationHandler();
 }
 
 - (void)testIsValidBridgeName {
@@ -207,13 +283,14 @@
     id mockBackend = OCMClassMock([MPBackendController class]);
     
     MPEvent *testEvent = [[MPEvent alloc] initWithName:@"foo webview event 1" type:MPEventTypeNavigation];
-    testEvent.info = @{@"foo webview event attribute 1":@"foo webview event attribute value 1"};
+    testEvent.customAttributes = @{@"foo webview event attribute 1":@"foo webview event attribute value 1"};
     
     [[[mockBackend expect] ignoringNonObjectArgs] logEvent:[OCMArg checkWithBlock:^BOOL(id value) {
+        XCTAssert([value isKindOfClass:[MPEvent class]]);
         MPEvent *returnedEvent = ((MPEvent *)value);
         XCTAssertEqualObjects(returnedEvent.name, testEvent.name);
         XCTAssertEqual(returnedEvent.type, testEvent.type);
-        XCTAssertEqualObjects(returnedEvent.info, testEvent.info);
+        XCTAssertEqualObjects(returnedEvent.customAttributes, testEvent.customAttributes);
         
         return YES;
     }] completionHandler:[OCMArg any]];
@@ -232,6 +309,168 @@
     [mockBackend stopMocking];
 }
 
+- (void)testWebviewLogCommerceAttributes {
+    id mockBackend = OCMClassMock([MPBackendController class]);
+    
+    MPProduct *testProduct = [[MPProduct alloc] initWithName:@"foo product 1" sku:@"12345" quantity:@1 price:@19.95];
+    MPCommerceEvent *testEvent = [[MPCommerceEvent alloc] initWithAction:MPCommerceEventActionAddToCart product:testProduct];
+    testEvent.customAttributes = @{@"foo webview event attribute 1":@"foo webview event attribute value 1"};
+    
+    [[[mockBackend expect] ignoringNonObjectArgs] logCommerceEvent:[OCMArg checkWithBlock:^BOOL(id value) {
+        XCTAssert([value isKindOfClass:[MPCommerceEvent class]]);
+        MPCommerceEvent *returnedEvent = ((MPCommerceEvent *)value);
+        XCTAssertEqualObjects(returnedEvent.products[0].name, testProduct.name);
+        XCTAssertEqualObjects(returnedEvent.products[0].sku, testProduct.sku);
+        XCTAssertEqualObjects(returnedEvent.products[0].quantity, testProduct.quantity);
+        XCTAssertEqualObjects(returnedEvent.products[0].price, testProduct.price);
+        XCTAssertEqualObjects(returnedEvent.customAttributes, testEvent.customAttributes);
+        
+        return YES;
+    }] completionHandler:[OCMArg any]];
+    
+    MParticle *instance = [[MParticle alloc] init];
+    id mockInstance = OCMPartialMock(instance);
+    [[[mockInstance stub] andReturn:mockBackend] backendController];
+    
+    NSString *command = @"logEvent";
+    NSDictionary *dictionary = @{
+        @"EventDataType":@(MPJavascriptMessageTypeCommerce),
+        @"ProductAction":@{
+                @"ProductActionType":@0,
+                @"ProductList":@[
+                        @{
+                            @"Name":@"foo product 1",
+                            @"Sku":@"12345",
+                            @"Quantity":@1,
+                            @"Price": @19.95
+                        }
+                ]
+        },
+        @"EventAttributes":@{
+                @"foo webview event attribute 1":@"foo webview event attribute value 1"
+        }
+    };
+    [instance handleWebviewCommand:command dictionary:dictionary];
+    
+    [mockBackend verifyWithDelay:2];
+    
+    [mockInstance stopMocking];
+    [mockBackend stopMocking];
+}
+
+- (void)testWebviewLogCommerceInvalidArray {
+    id mockBackend = OCMClassMock([MPBackendController class]);
+    
+    [[mockBackend reject] logCommerceEvent:[OCMArg any] completionHandler:[OCMArg any]];
+    
+    MParticle *instance = [[MParticle alloc] init];
+    id mockInstance = OCMPartialMock(instance);
+    [[[mockInstance stub] andReturn:mockBackend] backendController];
+    
+    NSString *command = @"logEvent";
+    NSDictionary *dictionary = (NSDictionary *)@[
+        @{
+            @"EventDataType":@(MPJavascriptMessageTypeCommerce),
+            @"ProductAction":@{
+                    @"ProductActionType":@0,
+                    @"ProductList":@[
+                            @{
+                                @"Name":@"foo product 1",
+                                @"Sku":@"12345",
+                                @"Quantity":@1,
+                                @"Price": @19.95
+                            }
+                    ]
+            },
+            @"EventAttributes":@{
+                    @"foo webview event attribute 1":@"foo webview event attribute value 1"
+            }
+        }];
+    [instance handleWebviewCommand:command dictionary:dictionary];
+    
+    [mockBackend verifyWithDelay:2];
+    
+    [mockInstance stopMocking];
+    [mockBackend stopMocking];
+}
+
+- (void)testWebviewLogCommerceInvalidArrayValues {
+    id mockBackend = OCMClassMock([MPBackendController class]);
+    
+    [[mockBackend reject] logCommerceEvent:[OCMArg any] completionHandler:[OCMArg any]];
+    
+    MParticle *instance = [[MParticle alloc] init];
+    id mockInstance = OCMPartialMock(instance);
+    [[[mockInstance stub] andReturn:mockBackend] backendController];
+    
+    NSString *command = @"logEvent";
+    NSDictionary *dictionary = @{
+            @"EventDataType":@(MPJavascriptMessageTypeCommerce),
+            @"ProductAction":@{
+                    @"ProductActionType":@[],
+                    @"ProductList":@[
+                            @{
+                                @"Name":@[],
+                                @"Sku":@[],
+                                @"Quantity":@[],
+                                @"Price": @[]
+                            }
+                    ]
+            },
+            @"EventAttributes":@{
+                    @"foo webview event attribute 1":@[]
+            }
+        };
+    [instance handleWebviewCommand:command dictionary:dictionary];
+    
+    [mockBackend verifyWithDelay:2];
+    
+    [mockInstance stopMocking];
+    [mockBackend stopMocking];
+}
+
+- (void)testWebviewLogCommerceNull {
+    id mockBackend = OCMClassMock([MPBackendController class]);
+    
+    [[[mockBackend expect] ignoringNonObjectArgs] logCommerceEvent:[OCMArg checkWithBlock:^BOOL(id value) {
+        XCTAssert([value isKindOfClass:[MPCommerceEvent class]]);
+        MPCommerceEvent *returnedEvent = ((MPCommerceEvent *)value);
+        XCTAssertNotEqual((NSNull *)returnedEvent.currency, [NSNull null]);
+        
+        return YES;
+    }] completionHandler:[OCMArg any]];
+    
+    MParticle *instance = [[MParticle alloc] init];
+    id mockInstance = OCMPartialMock(instance);
+    [[[mockInstance stub] andReturn:mockBackend] backendController];
+    
+    NSString *command = @"logEvent";
+    NSDictionary *dictionary = @{
+        @"EventDataType":@(MPJavascriptMessageTypeCommerce),
+        @"ProductAction":@{
+                @"ProductActionType":@0,
+                @"ProductList":@[
+                        @{
+                            @"Name":@"foo product 1",
+                            @"Sku":@"12345",
+                            @"Quantity":@1,
+                            @"Price": @19.95
+                        }
+                ]
+        },
+        @"CurrencyCode":[NSNull null],
+        @"EventAttributes":@{
+                @"foo webview event attribute 1":@"foo webview event attribute value 1"
+        }
+    };
+    
+    [instance handleWebviewCommand:command dictionary:dictionary];
+    
+    [mockBackend verifyWithDelay:2];
+    
+    [mockInstance stopMocking];
+    [mockBackend stopMocking];
+}
 - (void)testTrackNotificationsDefault {
     id mockBackend = OCMClassMock([MPBackendController class]);
     
@@ -285,9 +524,7 @@
 - (void)testSessionStartNotification {
     [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(handleTestSessionStart:) name:mParticleSessionDidBeginNotification object:nil];
     XCTestExpectation *expectation = [self expectationWithDescription:@"async work"];
-    MParticle *instance = [MParticle sharedInstance];
-    [instance startWithOptions:[MParticleOptions optionsWithKey:@"unit-test-key" secret:@"unit-test-secret"]];
-    dispatch_async([MParticle messageQueue], ^{
+    __strong dispatch_block_t block = ^{
         XCTAssertNotNil(self->lastNotification);
         NSDictionary *userInfo = self->lastNotification.userInfo;
         XCTAssertEqual(2, userInfo.count);
@@ -296,29 +533,35 @@
         NSString *sessionUUID = userInfo[mParticleSessionUUID];
         XCTAssertEqualObjects(NSStringFromClass([sessionUUID class]), @"__NSCFString");
         [expectation fulfill];
-    });
+    };
+    testNotificationHandler = block;
+    MParticle *instance = [MParticle sharedInstance];
+    [instance startWithOptions:[MParticleOptions optionsWithKey:@"unit-test-key" secret:@"unit-test-secret"]];
     [self waitForExpectationsWithTimeout:10 handler:nil];
+    testNotificationHandler = nil;
 }
 
 - (void)testSessionEndNotification {
     [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(handleTestSessionEnd:) name:mParticleSessionDidEndNotification object:nil];
     XCTestExpectation *expectation = [self expectationWithDescription:@"async work"];
+    __strong dispatch_block_t block = ^{
+        XCTAssertNotNil(self->lastNotification);
+        NSDictionary *userInfo = self->lastNotification.userInfo;
+        XCTAssertEqual(2, userInfo.count);
+        NSNumber *sessionID = userInfo[mParticleSessionId];
+        XCTAssertEqualObjects(NSStringFromClass([sessionID class]), @"__NSCFNumber");
+        NSString *sessionUUID = userInfo[mParticleSessionUUID];
+        XCTAssertEqualObjects(NSStringFromClass([sessionUUID class]), @"__NSCFString");
+        [expectation fulfill];
+    };
+    testNotificationHandler = block;
     MParticle *instance = [MParticle sharedInstance];
     [instance startWithOptions:[MParticleOptions optionsWithKey:@"unit-test-key" secret:@"unit-test-secret"]];
     dispatch_async([MParticle messageQueue], ^{
         [[MParticle sharedInstance].backendController endSession];
-        dispatch_async(dispatch_get_main_queue(), ^{
-            XCTAssertNotNil(self->lastNotification);
-            NSDictionary *userInfo = self->lastNotification.userInfo;
-            XCTAssertEqual(2, userInfo.count);
-            NSNumber *sessionID = userInfo[mParticleSessionId];
-            XCTAssertEqualObjects(NSStringFromClass([sessionID class]), @"__NSCFNumber");
-            NSString *sessionUUID = userInfo[mParticleSessionUUID];
-            XCTAssertEqualObjects(NSStringFromClass([sessionUUID class]), @"__NSCFString");
-            [expectation fulfill];
-        });
     });
     [self waitForExpectationsWithTimeout:10 handler:nil];
+    testNotificationHandler = nil;
 }
 
 - (void)testLogNotificationWithUserInfo {
@@ -340,27 +583,82 @@
     [mockBackendController stopMocking];
     [mockInstance stopMocking];
 }
+#endif
 
-- (void)testLogWebviewEventContainingSlash {
+- (void)testLogNilEvent {
     MParticle *instance = [MParticle sharedInstance];
-    id mockInstance = OCMPartialMock(instance);
-    [[[mockInstance stub] andReturn:mockInstance] sharedInstance];
-    
-    [(MParticle *)[mockInstance expect] logEvent:[OCMArg checkWithBlock:^BOOL(MPEvent *value) {
-        return [value.info[@"referrer_source"] isEqual:@"http://example.com/foo?bar=1"];
-    }]];
-    
-    NSURL *url = [NSURL URLWithString:@"mp-sdk://logEvent/%7B%22EventName%22%3A%22foo%20content%20view%22%2C%22EventCategory%22%3A1%2C%22UserAttributes%22%3A%7B%7D%2C%22UserIdentities%22%3A%7B%7D%2C%22Store%22%3A%7B%7D%2C%22EventAttributes%22%3A%7B%22foo%20document%20id%22%3A12345%2C%22referrer_source%22%3A%22http%3A%2F%2Fexample.com%2Ffoo%3Fbar%3D1%22%7D%2C%22SDKVersion%22%3A%221.2.3.4%22%2C%22SessionId%22%3Anull%2C%22EventDataType%22%3A4%2C%22Debug%22%3Afalse%2C%22Location%22%3Anull%2C%22OptOut%22%3Anull%2C%22ExpandedEventCount%22%3A0%2C%22AppVersion%22%3Anull%2C%22ClientGeneratedId%22%3Anull%2C%22DeviceId%22%3Anull%2C%22MPID%22%3Anull%2C%22ConsentState%22%3Anull%2C%22Timestamp%22%3A12345%7D"];
-    
+    NSException *e = nil;
+    @try {
+        [instance logEvent:(id _Nonnull)nil];
+    } @catch (NSException *ex) {
+        e = ex;
+    }
+    XCTAssertNil(e);
+}
+
+- (void)testLogNilScreenEvent {
+    MParticle *instance = [MParticle sharedInstance];
+    NSException *e = nil;
+    @try {
+        [instance logScreenEvent:(id _Nonnull)nil];
+    } @catch (NSException *ex) {
+        e = ex;
+    }
+    XCTAssertNil(e);
+}
+
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wdeprecated-declarations"
-    [mockInstance processWebViewLogEvent:url];
-#pragma clang diagnostic pop
-    
-
-    [mockInstance verifyWithDelay:1.0];
-    [mockInstance stopMocking];
+- (void)testLogNilCommerceEvent {
+    MParticle *instance = [MParticle sharedInstance];
+    NSException *e = nil;
+    @try {
+        [instance logCommerceEvent:(id _Nonnull)nil];
+    } @catch (NSException *ex) {
+        e = ex;
+    }
+    XCTAssertNil(e);
 }
+#pragma clang diagnostic pop
+
+- (void)testUserAgentDefault {
+    id mockWebView = OCMClassMock([MParticleWebView class]);
+#if TARGET_OS_IOS == 1
+    [[[mockWebView stub] andReturn:@"Example resolved agent"] userAgent];
+#else
+    [[[mockWebView stub] andReturn:[NSString stringWithFormat:@"mParticle Apple SDK/%@", MParticle.sharedInstance.version]] userAgent];
 #endif
+    id mockMParticle = OCMPartialMock([MParticle sharedInstance]);
+    [[[mockMParticle stub] andReturn:mockWebView] webView];
+    NSURL *url = [NSURL URLWithString:@"https://nativesdks.mparticle.com"];
+    NSMutableURLRequest *urlRequest = [[MPURLRequestBuilder newBuilderWithURL:url message:nil httpMethod:kMPHTTPMethodGet] build];
+    NSDictionary *fields = urlRequest.allHTTPHeaderFields;
+    NSString *actualAgent = fields[@"User-Agent"];
+    NSString *defaultAgent = [NSString stringWithFormat:@"mParticle Apple SDK/%@", MParticle.sharedInstance.version];
+    #if TARGET_OS_IOS == 1
+    XCTAssertNotEqualObjects(actualAgent, defaultAgent);
+    #else
+    XCTAssertEqualObjects(actualAgent, defaultAgent);
+    #endif
+    [mockWebView stopMocking];
+    [mockMParticle stopMocking];
+}
+
+- (void)testUserAgentCustom {
+    NSString *customAgent = @"Foo 1.2.3 Like Bar";
+    id mockWebView = OCMClassMock([MParticleWebView class]);
+    [[[mockWebView stub] andReturn:customAgent] userAgent];
+    id mockMParticle = OCMPartialMock([MParticle sharedInstance]);
+    [[[mockMParticle stub] andReturn:mockWebView] webView];
+    
+    NSURL *url = [NSURL URLWithString:@"https://nativesdks.mparticle.com"];
+    NSMutableURLRequest *urlRequest = [[MPURLRequestBuilder newBuilderWithURL:url message:nil httpMethod:kMPHTTPMethodGet] build];
+    NSDictionary *fields = urlRequest.allHTTPHeaderFields;
+    NSString *actualAgent = fields[@"User-Agent"];
+    XCTAssertEqualObjects(actualAgent, customAgent);
+    
+    [mockMParticle stopMocking];
+    [mockWebView stopMocking];
+}
 
 @end

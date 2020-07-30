@@ -4,7 +4,7 @@
 #import "MPILogger.h"
 #import "MPDateFormatter.h"
 #import "MPPersistenceController.h"
-#import "MParticle.h"
+#import "mParticle.h"
 
 @interface MPCustomModulePreference()
 
@@ -59,6 +59,9 @@
                     
                 case MPDataTypeFloat:
                     _defaultValue = @"0.0";
+                    break;
+                    
+                default:
                     break;
             }
         }
@@ -271,6 +274,9 @@
                 
             case MPDataTypeFloat:
                 _value = @([self.defaultValue floatValue]);
+                break;
+                
+            default:
                 break;
         }
     }

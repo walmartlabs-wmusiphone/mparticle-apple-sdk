@@ -26,12 +26,12 @@
     return self;
 }
 
-- (instancetype)initWithEvent:(MPEvent *)event shouldFilter:(BOOL)shouldFilter {
+- (instancetype)initWithEvent:(MPBaseEvent *)event shouldFilter:(BOOL)shouldFilter {
     return [self initWithEvent:event shouldFilter:shouldFilter appliedProjections:nil];
 }
 
 - (instancetype)initWithEvent:(MPEvent *)event shouldFilter:(BOOL)shouldFilter appliedProjections:(NSArray<MPEventProjection *> *)appliedProjections {
-    self = [self initWithFilter:shouldFilter filteredAttributes:event.info];
+    self = [self initWithFilter:shouldFilter filteredAttributes:event.customAttributes];
     if (!self) {
         return nil;
     }

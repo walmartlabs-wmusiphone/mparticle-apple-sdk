@@ -22,7 +22,7 @@ This document will help you:
 
 ## Get the SDK
 
-The mParticle-Apple-SDK is available via [CocoaPods](https://cocoapods.org/?q=mparticle) or via [Carthage](https://github.com/Carthage/Carthage). Follow the instructions below based on your preference.
+The mParticle-Apple-SDK is available via [CocoaPods](https://cocoapods.org/?q=mparticle), [Carthage](https://github.com/Carthage/Carthage) or [Swift Package Manager](https://github.com/apple/swift-package-manager). Follow the instructions below based on your preference.
 
 #### CocoaPods
 
@@ -97,6 +97,14 @@ github "mparticle-integrations/mparticle-apple-integration-branchmetrics" ~> 7.0
 
 In this case, only the _Branch Metrics_ kit would be integrated; all other kits would be left out.
 
+#### Swift Package Manager
+
+To integrate the SDK using Swift Package Manager, open your Xcode project and navigate to File > Swift Packages > Add Package Dependency
+
+Enter the repository URL `https://github.com/mParticle/mparticle-apple-sdk` and click Next.
+
+You can leave the version settings as default and click Next one more time to complete adding the package dependency.
+
 #### Currently Supported Kits
 
 Several integrations require additional client-side add-on libraries called "kits." Some kits embed other SDKs, others just contain a bit of additional functionality. Kits are designed to feel just like server-side integrations; you enable, disable, filter, sample, and otherwise tweak kits completely from the mParticle platform UI. The Core SDK will detect kits at runtime, but you need to add them as dependencies to your app.
@@ -111,8 +119,10 @@ Kit | CocoaPods | Carthage
 [Apptentive](https://github.com/mparticle-integrations/mparticle-apple-integration-apptentive)        |  ✓ | ✓ 
 [Apptimize](https://github.com/mparticle-integrations/mparticle-apple-integration-apptimize)          |  ✓ |   
 [Apteligent](https://github.com/mparticle-integrations/mparticle-apple-integration-apteligent)        |  ✓ |  
+[Blueshift](https://github.com/blueshift-labs/mparticle-apple-integration-blueshift)                  |  ✓ |  
 [Branch Metrics](https://github.com/mparticle-integrations/mparticle-apple-integration-branchmetrics) |  ✓ | ✓
 [Button](https://github.com/mparticle-integrations/mparticle-apple-integration-button)                |  ✓ | ✓
+[CleverTap](https://github.com/mparticle-integrations/mparticle-apple-integration-clevertap)          |  ✓ | ✓
 [comScore](https://github.com/mparticle-integrations/mparticle-apple-integration-comscore)            |  ✓ |  
 [Flurry](https://github.com/mparticle-integrations/mparticle-apple-integration-flurry)                |  ✓ |  
 [Google Analytics for Firebase](https://github.com/mparticle-integrations/mparticle-apple-integration-google-analytics-firebase) |  ✓ |  
@@ -122,10 +132,12 @@ Kit | CocoaPods | Carthage
 [Kochava](https://github.com/mparticle-integrations/mparticle-apple-integration-kochava)              |  ✓ |  
 [Leanplum](https://github.com/mparticle-integrations/mparticle-apple-integration-leanplum)            |  ✓ | ✓
 [Localytics](https://github.com/mparticle-integrations/mparticle-apple-integration-localytics)        |  ✓ | ✓
-[Optimizely](https://github.com/mparticle-integrations/mparticle-apple-integration-optimizely)         |  ✓ | ✓
+[Optimizely](https://github.com/mparticle-integrations/mparticle-apple-integration-optimizely)        |  ✓ | ✓
+[OneTrust](https://github.com/mparticle-integrations/mparticle-apple-integration-onetrust)            |  ✓ | ✓
+[Pilgrim](https://github.com/mparticle-integrations/mparticle-apple-integration-pilgrim)              |  ✓ | ✓
 [Primer](https://github.com/mparticle-integrations/mparticle-apple-integration-primer)                |  ✓ | ✓
 [Radar](https://github.com/mparticle-integrations/mparticle-apple-integration-radar)                  |  ✓ | ✓
-[Responsys](https://github.com/mparticle-integrations/mparticle-apple-integration-responsys)                |   |
+[Responsys](https://github.com/mparticle-integrations/mparticle-apple-integration-responsys)          |    |
 [Reveal Mobile](https://github.com/mparticle-integrations/mparticle-apple-integration-revealmobile)   |  ✓ |  
 [Singular](https://github.com/mparticle-integrations/mparticle-apple-integration-singular)            |  ✓ |  
 [Skyhook](https://github.com/mparticle-integrations/mparticle-apple-integration-skyhook)              |  ✓ |  

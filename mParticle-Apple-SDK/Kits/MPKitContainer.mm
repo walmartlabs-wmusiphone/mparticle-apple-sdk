@@ -277,7 +277,8 @@ static NSMutableSet <id<MPExtensionKitProtocol>> *kitsRegistry;
 - (NSDictionary *)methodMessageTypeMapping {
     NSString *messageTypeEvent = kMPMessageTypeStringEvent;
     
-    NSDictionary *methodMessageTypeDictionary = @{@"logEvent:":messageTypeEvent,
+    NSDictionary *methodMessageTypeDictionary = @{@"logBaseEvent:":messageTypeEvent,
+                                                  @"logEvent:":messageTypeEvent,
                                                   @"logScreen:":kMPMessageTypeStringScreenView,
                                                   @"logScreenEvent:":kMPMessageTypeStringScreenView,
                                                   @"beginSession":kMPMessageTypeStringSessionStart,
@@ -376,42 +377,52 @@ static NSMutableSet <id<MPExtensionKitProtocol>> *kitsRegistry;
 }
 
 - (BOOL)isDisabledByConsentKitFilter:(MPConsentKitFilter *)kitFilter {
-    if (!kitFilter) {
-        return NO;
-    }
-    
     BOOL isMatch = NO;
-    
-    NSArray<MPConsentKitFilterItem *> *itemsArray = kitFilter.filterItems;
-    for (MPConsentKitFilterItem *item in itemsArray) {
-        int hash = item.javascriptHash;
-        
-        NSString *hashString = @(hash).stringValue;
-        BOOL consented = item.consented;
-        
-        MPConsentState *state = [MParticle sharedInstance].identity.currentUser.consentState;
-        
-        if (state == nil) {
-            return NO;
-        }
-        
-        NSDictionary<NSString *, MPGDPRConsent *> *gdprConsentState = [state.gdprConsentState copy];
-        
-        for (NSString *purpose in gdprConsentState) {
+
+    if (kitFilter) {
+        NSArray<MPConsentKitFilterItem *> *itemsArray = kitFilter.filterItems;
+        for (MPConsentKitFilterItem *item in itemsArray) {
+            int hash = item.javascriptHash;
             
-            MPGDPRConsent *gdprConsent = gdprConsentState[purpose];
-            BOOL userConsented = gdprConsent.consented;
+            NSString *hashString = @(hash).stringValue;
+            BOOL consented = item.consented;
             
-            string stringToHash = string(kMPConsentHashStringForGDPR.UTF8String);
-            stringToHash += string([[purpose lowercaseString] UTF8String]);
-            NSString *purposeHash = [NSString stringWithCString:mParticle::Hasher::hashString(stringToHash).c_str() encoding:NSUTF8StringEncoding];
+            MPConsentState *state = [MParticle sharedInstance].identity.currentUser.consentState;
             
-            if (consented == userConsented && [purposeHash isEqual:hashString]) {
-                isMatch = YES;
-                break;
+            if (state != nil) {
+                NSDictionary<NSString *, MPGDPRConsent *> *gdprConsentState = [state.gdprConsentState copy];
+                
+                for (NSString *purpose in gdprConsentState) {
+                    
+                    MPGDPRConsent *gdprConsent = gdprConsentState[purpose];
+                    BOOL userConsented = gdprConsent.consented;
+                    
+                    string stringToHash = string(kMPConsentGDPRRegulationType.UTF8String);
+                    stringToHash += string([[purpose lowercaseString] UTF8String]);
+                    NSString *purposeHash = [NSString stringWithCString:mParticle::Hasher::hashString(stringToHash).c_str() encoding:NSUTF8StringEncoding];
+                    
+                    if (consented == userConsented && [purposeHash isEqual:hashString]) {
+                        isMatch = YES;
+                        break;
+                    }
+                }
+                
+                MPCCPAConsent *ccpaConsentState = state.ccpaConsentState;
+                
+                if (ccpaConsentState != nil) {
+                    string stringToHash = string(kMPConsentCCPARegulationType.UTF8String);
+                    stringToHash += string(kMPConsentCCPAPurposeName.UTF8String);
+                    NSString *purposeHash = [NSString stringWithCString:mParticle::Hasher::hashString(stringToHash).c_str() encoding:NSUTF8StringEncoding];
+                    
+                    if (consented == ccpaConsentState.consented && [purposeHash isEqual:hashString]) {
+                        isMatch = YES;
+                        break;
+                    }
+                }
             }
+            
+            
         }
-        
     }
     
     BOOL shouldInclude;
@@ -598,7 +609,7 @@ static NSMutableSet <id<MPExtensionKitProtocol>> *kitsRegistry;
     __block MPKitFilter *kitFilter = [[MPKitFilter alloc] initWithCommerceEvent:commerceEvent shouldFilter:NO];
     
     // Attribute value filtering
-    if (![self shouldIncludeEventWithAttributes:commerceEvent.userDefinedAttributes afterAttributeValueFilteringWithConfiguration:kitConfiguration]) {
+    if (![self shouldIncludeEventWithAttributes:commerceEvent.customAttributes afterAttributeValueFilteringWithConfiguration:kitConfiguration]) {
         kitFilter = [[MPKitFilter alloc] initWithCommerceEvent:commerceEvent shouldFilter:YES];
         return kitFilter;
     }
@@ -701,7 +712,7 @@ static NSMutableSet <id<MPExtensionKitProtocol>> *kitsRegistry;
             // Commerce event attribute filter (user defined attributes)
             filteredAttributes = [[NSMutableDictionary alloc] init];
             
-            [[forwardCommerceEvent userDefinedAttributes] enumerateKeysAndObjectsUsingBlock:^(NSString *key, id obj, BOOL *stop) {
+            [[forwardCommerceEvent customAttributes] enumerateKeysAndObjectsUsingBlock:^(NSString *key, id obj, BOOL *stop) {
                 auxString = [NSString stringWithFormat:@"%@%@", [@([commerceEvent type]) stringValue], key];
                 hashValue = [NSString stringWithCString:mParticle::Hasher::hashString([[auxString lowercaseString] UTF8String]).c_str() encoding:NSUTF8StringEncoding];
                 
@@ -713,7 +724,7 @@ static NSMutableSet <id<MPExtensionKitProtocol>> *kitsRegistry;
                 }
             }];
             
-            [forwardCommerceEvent setUserDefinedAttributes:(filteredAttributes.count > 0 ? filteredAttributes : nil)];
+            [forwardCommerceEvent setCustomAttributes:(filteredAttributes.count > 0 ? filteredAttributes : nil)];
             
             // Transaction attributes
             __block MPTransactionAttributes *filteredTransactionAttributes = [[MPTransactionAttributes alloc] init];
@@ -767,7 +778,7 @@ static NSMutableSet <id<MPExtensionKitProtocol>> *kitsRegistry;
     return kitFilter;
 }
 
-- (MPKitFilter *)filter:(id<MPExtensionKitProtocol>)kitRegister forEvent:(MPEvent *const)event selector:(SEL)selector {
+- (MPKitFilter *)filter:(id<MPExtensionKitProtocol>)kitRegister forEvent:(MPBaseEvent *const)event selector:(SEL)selector {
     MPKitConfiguration *kitConfiguration = self.kitConfigurations[kitRegister.code];
     NSNumber *zero = @0;
     __block MPKitFilter *kitFilter = [[MPKitFilter alloc] initWithEvent:event shouldFilter:NO];
@@ -775,7 +786,7 @@ static NSMutableSet <id<MPExtensionKitProtocol>> *kitsRegistry;
     __block BOOL shouldFilter = NO;
     
     // Attribute value filtering
-    shouldFilter = ![self shouldIncludeEventWithAttributes:event.info afterAttributeValueFilteringWithConfiguration:kitConfiguration];
+    shouldFilter = ![self shouldIncludeEventWithAttributes:event.customAttributes afterAttributeValueFilteringWithConfiguration:kitConfiguration];
     if (shouldFilter) {
         kitFilter = [[MPKitFilter alloc] initWithFilter:shouldFilter];
         return kitFilter;
@@ -820,41 +831,42 @@ static NSMutableSet <id<MPExtensionKitProtocol>> *kitsRegistry;
         attributeFilters = kitConfiguration.eventAttributeFilters;
     }
     
-    __block NSString *auxString = [[NSString stringWithFormat:@"%@%@", eventTypeString, event.name] lowercaseString];
-    hashValue = [NSString stringWithCString:mParticle::Hasher::hashString([auxString cStringUsingEncoding:NSUTF8StringEncoding]).c_str()
-                                   encoding:NSUTF8StringEncoding];
-    
-    shouldFilter = nameFilters[hashValue] && [nameFilters[hashValue] isEqualToNumber:zero];
-    if (shouldFilter) {
-        kitFilter = [[MPKitFilter alloc] initWithFilter:shouldFilter];
-        return kitFilter;
-    }
-    
+    MPEvent *forwardEvent = [event copy];
     // Attributes
     MPMessageType messageTypeCode = (MPMessageType)mParticle::MessageTypeName::messageTypeForName(string([messageType UTF8String]));
-    if (messageTypeCode != MPMessageTypeEvent && messageTypeCode != MPMessageTypeScreenView) {
+    if (messageTypeCode != MPMessageTypeEvent && messageTypeCode != MPMessageTypeScreenView && messageTypeCode != MPMessageTypeMedia) {
         messageTypeCode = MPMessageTypeUnknown;
     }
-    
-    MPEvent *forwardEvent = [event copy];
-    
-    if (event.info) {
-        __block NSMutableDictionary *filteredAttributes = [[NSMutableDictionary alloc] initWithCapacity:forwardEvent.info.count];
+
+    if ([event isKindOfClass:[MPEvent class]]) {
+        __block NSString *auxString = [[NSString stringWithFormat:@"%@%@", eventTypeString, ((MPEvent *)event).name] lowercaseString];
+        hashValue = [NSString stringWithCString:mParticle::Hasher::hashString([auxString cStringUsingEncoding:NSUTF8StringEncoding]).c_str()
+                                       encoding:NSUTF8StringEncoding];
         
-        [forwardEvent.info enumerateKeysAndObjectsUsingBlock:^(NSString *key, id obj, BOOL *stop) {
-            auxString = [NSString stringWithFormat:@"%@%@%@", eventTypeString, event.name, key];
-            hashValue = [NSString stringWithCString:mParticle::Hasher::hashString([auxString cStringUsingEncoding:NSUTF8StringEncoding]).c_str()
-                                           encoding:NSUTF8StringEncoding];
-            
-            id attributeFilterValue = attributeFilters[hashValue];
-            BOOL attributeFilterIsFalse = [attributeFilterValue isEqualToNumber:zero];
-            
-            if (!attributeFilterValue || (attributeFilterValue && !attributeFilterIsFalse)) {
-                filteredAttributes[key] = obj;
-            }
-        }];
+        shouldFilter = nameFilters[hashValue] && [nameFilters[hashValue] isEqualToNumber:zero];
+        if (shouldFilter) {
+            kitFilter = [[MPKitFilter alloc] initWithFilter:shouldFilter];
+            return kitFilter;
+        }
         
-        forwardEvent.info = filteredAttributes.count > 0 ? filteredAttributes : nil;
+        if (event.customAttributes) {
+            __block NSMutableDictionary *filteredAttributes = [[NSMutableDictionary alloc] initWithCapacity:forwardEvent.customAttributes.count];
+            
+            [forwardEvent.customAttributes enumerateKeysAndObjectsUsingBlock:^(NSString *key, id obj, BOOL *stop) {
+                auxString = [NSString stringWithFormat:@"%@%@%@", eventTypeString, ((MPEvent *)event).name, key];
+                hashValue = [NSString stringWithCString:mParticle::Hasher::hashString([auxString cStringUsingEncoding:NSUTF8StringEncoding]).c_str()
+                                               encoding:NSUTF8StringEncoding];
+                
+                id attributeFilterValue = attributeFilters[hashValue];
+                BOOL attributeFilterIsFalse = [attributeFilterValue isEqualToNumber:zero];
+                
+                if (!attributeFilterValue || (attributeFilterValue && !attributeFilterIsFalse)) {
+                    filteredAttributes[key] = obj;
+                }
+            }];
+            
+            forwardEvent.customAttributes = filteredAttributes.count > 0 ? filteredAttributes : nil;
+        }
     }
     
     [self project:kitRegister event:forwardEvent messageType:messageTypeCode completionHandler:^(vector<MPEvent *> projectedEvents, vector<MPEventProjection *> appliedProjections) {
@@ -964,12 +976,32 @@ static NSMutableSet <id<MPExtensionKitProtocol>> *kitsRegistry;
     
     if (kitConfiguration) {
         
+        MPCCPAConsent *ccpaConsentState = state.ccpaConsentState;
+
         NSDictionary<NSString *, MPGDPRConsent *> *gdprState = state.gdprConsentState;
         
         NSString *regulationString = nil;
         
+        if (ccpaConsentState != nil) {
+            regulationString = [[NSString alloc] initWithFormat:@"%@%@", kMPConsentCCPARegulationType, kMPConsentCCPAPurposeName];
+            
+            NSString *regulationHash = [NSString stringWithCString:mParticle::Hasher::hashString(string([[regulationString lowercaseString] UTF8String])).c_str()
+                                                          encoding:NSUTF8StringEncoding];
+            
+            if (kitConfiguration.consentRegulationFilters[regulationHash] && [kitConfiguration.consentRegulationFilters[regulationHash] isEqual:@0]) {
+                kitFilter = [[MPKitFilter alloc] initWithFilter:YES];
+                return kitFilter;
+            } else {
+                MPConsentState *filteredState = [[MPConsentState alloc] init];
+                [filteredState setCCPAConsentState:ccpaConsentState];
+                
+                kitFilter = [[MPKitFilter alloc] initWithConsentState:filteredState shouldFilter:NO];
+                return kitFilter;
+            }
+        }
+        
         if (gdprState) {
-            regulationString = kMPConsentHashStringForGDPR;
+            regulationString = kMPConsentGDPRRegulationType;
             
             NSString *regulationHash = [NSString stringWithCString:mParticle::Hasher::hashString(string([[regulationString lowercaseString] UTF8String])).c_str()
                                                           encoding:NSUTF8StringEncoding];
@@ -1093,7 +1125,7 @@ static NSMutableSet <id<MPExtensionKitProtocol>> *kitsRegistry;
                             break;
                             
                         case MPProjectionPropertyKindEventAttribute:
-                            if (isApplicableEventProjection(eventProjection, [[commerceEvent userDefinedAttributes] transformValuesToString])) {
+                            if (isApplicableEventProjection(eventProjection, [[commerceEvent customAttributes] transformValuesToString])) {
                                 applicableEventProjections.push_back(eventProjection);
                             }
                             break;
@@ -1257,7 +1289,7 @@ static NSMutableSet <id<MPExtensionKitProtocol>> *kitsRegistry;
                 if (propertyKind == MPProjectionPropertyKindEventField) {
                     sourceDictionary = [[commerceEvent beautifiedAttributes] transformValuesToString];
                 } else if (propertyKind == MPProjectionPropertyKindEventAttribute) {
-                    sourceDictionary = [[commerceEvent userDefinedAttributes] transformValuesToString];
+                    sourceDictionary = [[commerceEvent customAttributes] transformValuesToString];
                 } else {
                     continue;
                 }
@@ -1330,7 +1362,7 @@ static NSMutableSet <id<MPExtensionKitProtocol>> *kitsRegistry;
     // Block to apply maximum custom attributes to the projected dictionary
     void (^applyMaxCustomAttributes)(MPCommerceEvent *, MPEventProjection *, NSMutableDictionary *) = ^(MPCommerceEvent *commerceEvent, MPEventProjection *eventProjection, NSMutableDictionary *projectedDictionary) {
         NSUInteger maxCustomParams = eventProjection.maxCustomParameters;
-        NSDictionary *userDictionary = [[commerceEvent userDefinedAttributes] transformValuesToString];
+        NSDictionary *userDictionary = [[commerceEvent customAttributes] transformValuesToString];
         
         if (eventProjection.appendAsIs && maxCustomParams > 0) {
             if (userDictionary.count > maxCustomParams) {
@@ -1482,11 +1514,11 @@ static NSMutableSet <id<MPExtensionKitProtocol>> *kitsRegistry;
                     for (auto &projectedDictionary : projectedDictionaries) {
                         if (eventProjection.outboundMessageType == MPMessageTypeCommerceEvent) {
                             MPCommerceEvent *projectedCommerceEvent = [commerceEvent copy];
-                            [projectedCommerceEvent setUserDefinedAttributes:projectedDictionary];
+                            [projectedCommerceEvent setCustomAttributes:projectedDictionary];
                             projectedCommerceEvents.push_back(projectedCommerceEvent);
                         } else {
                             MPEvent *projectedEvent = [[MPEvent alloc] initWithName:(eventProjection.projectedName ? : @" ") type:MPEventTypeTransaction];
-                            projectedEvent.info = projectedDictionary;
+                            projectedEvent.customAttributes = projectedDictionary;
                             projectedEvents.push_back(projectedEvent);
                         }
                         
@@ -1546,7 +1578,7 @@ static NSMutableSet <id<MPExtensionKitProtocol>> *kitsRegistry;
     
     // Attribute projection lambda function
     NSDictionary * (^projectAttributes)(MPEvent *const, MPEventProjection *const) = ^(MPEvent *const event, MPEventProjection *const eventProjection) {
-        NSDictionary *eventInfo = event.info;
+        NSDictionary *eventInfo = event.customAttributes;
         if (!eventInfo) {
             return (NSDictionary *)nil;
         }
@@ -1714,7 +1746,7 @@ static NSMutableSet <id<MPExtensionKitProtocol>> *kitsRegistry;
     MPEvent *projectedEvent;
     MPEventProjection *defaultProjection = nil;
     NSDictionary *projectedAttributes;
-    NSDictionary<NSString *, NSString *> *eventInfo = [event.info transformValuesToString];
+    NSDictionary<NSString *, NSString *> *eventInfo = [event.customAttributes transformValuesToString];
     
     if (projections.count > 0) {
         int eventNameHash = 0;
@@ -1777,7 +1809,7 @@ static NSMutableSet <id<MPExtensionKitProtocol>> *kitsRegistry;
                 projectedAttributes = projectAttributes(projectedEvent, eventProjection);
                 
                 if ((NSNull *)projectedAttributes != [NSNull null]) {
-                    projectedEvent.info = projectedAttributes;
+                    projectedEvent.customAttributes = projectedAttributes;
                     
                     if (eventProjection.projectedName) {
                         if (eventProjection.projectionMatches) {
@@ -1813,7 +1845,7 @@ static NSMutableSet <id<MPExtensionKitProtocol>> *kitsRegistry;
             projectedAttributes = projectAttributes(projectedEvent, defaultProjection);
             
             if ((NSNull *)projectedAttributes != [NSNull null]) {
-                projectedEvent.info = projectedAttributes;
+                projectedEvent.customAttributes = projectedAttributes;
                 
                 if (defaultProjection.projectedName && defaultProjection.projectionType == MPProjectionTypeEvent) {
                     projectedEvent.name = defaultProjection.projectedName;
@@ -2064,12 +2096,17 @@ static NSMutableSet <id<MPExtensionKitProtocol>> *kitsRegistry;
             MPKitExecStatus *execStatus = nil;
             
             id<MPKitProtocol> kit = kitRegister.wrapperInstance;
+            SEL logBaseEventSelector = @selector(logBaseEvent:);
             SEL logCommerceEventSelector = @selector(logCommerceEvent:);
             SEL logEventSelector = @selector(logEvent:);
             
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated-declarations"
             @try {
                 if (kitFilter.forwardCommerceEvent) {
-                    if ([kit respondsToSelector:logCommerceEventSelector]) {
+                    if ([kit respondsToSelector:logBaseEventSelector]) {
+                        execStatus = [kit logBaseEvent:kitFilter.forwardCommerceEvent];
+                    } else if ([kit respondsToSelector:logCommerceEventSelector]) {
                         execStatus = [kit logCommerceEvent:kitFilter.forwardCommerceEvent];
                     } else if ([kit respondsToSelector:logEventSelector]) {
                         NSArray *expandedInstructions = [kitFilter.forwardCommerceEvent expandedInstructions];
@@ -2082,12 +2119,17 @@ static NSMutableSet <id<MPExtensionKitProtocol>> *kitsRegistry;
                     }
                 }
                 
-                if (kitFilter.forwardEvent && [kit respondsToSelector:logEventSelector]) {
-                    execStatus = [kit logEvent:kitFilter.forwardEvent];
+                if (kitFilter.forwardEvent) {
+                    if ([kit respondsToSelector:logEventSelector] && [kitFilter.forwardEvent isKindOfClass:[MPEvent class]]) {
+                        execStatus = [kit logEvent:(MPEvent *)(kitFilter.forwardEvent)];
+                    } else if ([kit respondsToSelector:@selector(logBaseEvent:)]) {
+                        execStatus = [kit logBaseEvent:kitFilter.forwardEvent];
+                    }
                 }
             } @catch (NSException *e) {
                 MPILogError(@"Kit handler threw an exception: %@", e);
             }
+#pragma clang diagnostic pop
             
             if (execStatus.success) {
                 MPILogDebug(@"Successfully Forwarded to Kit");
@@ -2112,7 +2154,7 @@ static NSMutableSet <id<MPExtensionKitProtocol>> *kitsRegistry;
     }
 }
 
-- (void)forwardSDKCall:(SEL)selector event:(MPEvent *)event parameters:(MPForwardQueueParameters *)parameters messageType:(MPMessageType)messageType userInfo:(NSDictionary *)userInfo {
+- (void)forwardSDKCall:(SEL)selector event:(MPBaseEvent *)event parameters:(MPForwardQueueParameters *)parameters messageType:(MPMessageType)messageType userInfo:(NSDictionary *)userInfo {
     if (!self.kitsInitialized) {
         if (messageType == MPMessageTypePushRegistration) {
             return;
@@ -2137,28 +2179,26 @@ static NSMutableSet <id<MPExtensionKitProtocol>> *kitsRegistry;
     NSArray<id<MPExtensionKitProtocol>> *activeKitsRegistry = [self activeKitsRegistry];
     
     for (id<MPExtensionKitProtocol>kitRegister in activeKitsRegistry) {
-        if ([kitRegister.wrapperInstance respondsToSelector:selector]) {
-            if (event) {
-                [self filter:kitRegister forEvent:event selector:selector];
-            } else {
-                MPKitFilter *kitFilter = [self filter:kitRegister forSelector:selector];
-                [self attemptToLogEventToKit:kitRegister kitFilter:kitFilter selector:selector parameters:parameters messageType:messageType userInfo:userInfo];
-            }
+        if (event && [event isMemberOfClass:[MPEvent class]]) {
+            [self filter:kitRegister forEvent:event selector:selector];
+        } else {
+            MPKitFilter *kitFilter = [self filter:kitRegister forSelector:selector];
+            [self attemptToLogEventToKit:kitRegister kitFilter:kitFilter selector:selector parameters:parameters messageType:messageType userInfo:userInfo];
         }
     }
 }
 
 - (void)attemptToLogEventToKit:(id<MPExtensionKitProtocol>)kitRegister kitFilter:(MPKitFilter *)kitFilter selector:(SEL)selector parameters:(nullable MPForwardQueueParameters *)parameters messageType:(MPMessageType)messageType userInfo:(NSDictionary *)userInfo {
     if (kitFilter.shouldFilter && !kitFilter.filteredAttributes) {
-        MPILogDebug(@"Kit filtered out event: %@", kitFilter.forwardEvent.name);
+        MPILogDebug(@"Kit filtered out event: %@", kitFilter.forwardEvent.description);
         return;
     }
     
     __block NSNumber *lastKit = nil;
     
     dispatch_async(dispatch_get_main_queue(), ^{
-        if (kitFilter.forwardEvent.name != nil) {
-            MPILogDebug(@"Forwarding %@ call to kit: %@", kitFilter.forwardEvent.name, kitRegister.name);
+        if ([kitFilter.forwardEvent isKindOfClass:[MPEvent class]] && ((MPEvent *)kitFilter.forwardEvent).name != nil) {
+            MPILogDebug(@"Forwarding %@ call to kit: %@", ((MPEvent *)kitFilter.forwardEvent).name, kitRegister.name);
         } else if (NSStringFromSelector(selector) != nil) {
             MPILogDebug(@"Forwarding %@ call to kit: %@", NSStringFromSelector(selector), kitRegister.name);
         }
@@ -2168,17 +2208,23 @@ static NSMutableSet <id<MPExtensionKitProtocol>> *kitsRegistry;
         @try {
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Warc-performSelector-leaks"
-            if ([kitRegister.wrapperInstance respondsToSelector:selector]) {
+#pragma clang diagnostic ignored "-Wdeprecated-declarations"
+            if ([kitRegister.wrapperInstance respondsToSelector:@selector(logBaseEvent:)] && ((selector == @selector(logEvent:)) || (selector == @selector(logBaseEvent:)))) {
+                if (!kitFilter.forwardEvent) {
+                    return;
+                }
+                execStatus = [kitRegister.wrapperInstance logBaseEvent:kitFilter.forwardEvent];
+            } else if ([kitRegister.wrapperInstance respondsToSelector:selector]) {
                 if (selector == @selector(logEvent:)) {
-                    if (!kitFilter.forwardEvent) {
+                    if (!kitFilter.forwardEvent || ![kitFilter.forwardEvent isKindOfClass:[MPEvent class]]) {
                         return;
                     }
-                    execStatus = [kitRegister.wrapperInstance logEvent:kitFilter.forwardEvent];
+                    execStatus = [kitRegister.wrapperInstance logEvent:((MPEvent *)kitFilter.forwardEvent)];
                 } else if (selector == @selector(logScreen:)) {
-                    if (!kitFilter.forwardEvent) {
+                    if (!kitFilter.forwardEvent || ![kitFilter.forwardEvent isKindOfClass:[MPEvent class]]) {
                         return;
                     }
-                    execStatus = [kitRegister.wrapperInstance logScreen:kitFilter.forwardEvent];
+                    execStatus = [kitRegister.wrapperInstance logScreen:((MPEvent *)kitFilter.forwardEvent)];
                 } else if (selector == @selector(surveyURLWithUserAttributes:)) {
                     [kitRegister.wrapperInstance surveyURLWithUserAttributes:parameters[0]];
                     execStatus = [[MPKitExecStatus alloc] initWithSDKCode:kitRegister.code returnCode:MPKitReturnCodeSuccess];
@@ -2215,7 +2261,7 @@ static NSMutableSet <id<MPExtensionKitProtocol>> *kitsRegistry;
         }
         
         NSNumber *currentKit = kitRegister.code;
-        if (execStatus.success && ![lastKit isEqualToNumber:currentKit] && messageType != MPMessageTypeUnknown) {
+        if (execStatus.success && ![lastKit isEqualToNumber:currentKit] && messageType != MPMessageTypeUnknown && messageType != MPMessageTypeMedia) {
             lastKit = currentKit;
             
             MPForwardRecord *forwardRecord = nil;
@@ -2230,9 +2276,12 @@ static NSMutableSet <id<MPExtensionKitProtocol>> *kitsRegistry;
                                                                    kitFilter:kitFilter
                                                                originalEvent:kitFilter.originalEvent];
             }
-            dispatch_async([MParticle messageQueue], ^{
-                [[MParticle sharedInstance].persistenceController saveForwardRecord:forwardRecord];
-            });
+            
+            if (forwardRecord != nil) {
+                dispatch_async([MParticle messageQueue], ^{
+                    [[MParticle sharedInstance].persistenceController saveForwardRecord:forwardRecord];
+                });
+            }
         }
     });
 }

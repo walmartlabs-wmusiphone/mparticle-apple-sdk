@@ -16,11 +16,6 @@
     @class MParticleUserNotification;
 #endif
 
-typedef NS_ENUM(NSUInteger, MPPersistenceOperation) {
-    MPPersistenceOperationDelete = 0,
-    MPPersistenceOperationFlag
-};
-
 @interface MPPersistenceController : NSObject
 
 @property (nonatomic, readonly, getter = isDatabaseOpen) BOOL databaseOpen;
@@ -58,7 +53,6 @@ typedef NS_ENUM(NSUInteger, MPPersistenceOperation) {
 - (nullable NSArray<MPSegment *> *)fetchSegments;
 - (nullable MPMessage *)fetchSessionEndMessageInSession:(nonnull MPSession *)session;
 - (nullable NSMutableArray<MPSession *> *)fetchSessions;
-- (nullable NSArray<MPMessage *> *)fetchMessagesInSession:(nonnull MPSession *)session userId:(nonnull NSNumber *)userId;
 - (nullable NSArray<MPMessage *> *)fetchUploadedMessagesInSession:(nonnull MPSession *)session;
 - (nullable NSArray<MPUpload *> *)fetchUploads;
 - (void)moveContentFromMpidZeroToMpid:(nonnull NSNumber *)mpid;
@@ -71,7 +65,7 @@ typedef NS_ENUM(NSUInteger, MPPersistenceOperation) {
 - (void)saveMessage:(nonnull MPMessage *)message;
 - (void)saveSegment:(nonnull MPSegment *)segment;
 - (void)saveSession:(nonnull MPSession *)session;
-- (void)saveUpload:(nonnull MPUpload *)upload messageIds:(nonnull NSArray<NSNumber *> *)messageIds operation:(MPPersistenceOperation)operation;
+- (void)saveUpload:(nonnull MPUpload *)upload;
 - (void)updateConsumerInfo:(nonnull MPConsumerInfo *)consumerInfo;
 - (void)updateSession:(nonnull MPSession *)session;
 

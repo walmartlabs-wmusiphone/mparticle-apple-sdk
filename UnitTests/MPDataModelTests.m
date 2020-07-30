@@ -7,7 +7,7 @@
 #import "MPStateMachine.h"
 #import "MPPersistenceController.h"
 #import "MPBaseTestCase.h"
-#import "MParticle.h"
+#import "mParticle.h"
 
 @interface MParticle ()
 
@@ -117,7 +117,7 @@
                                        kMPMessagesKey:@[[message dictionaryRepresentation]],
                                        kMPMessageIdKey:[[NSUUID UUID] UUIDString]};
     
-    MPUpload *upload = [[MPUpload alloc] initWithSessionId:[NSNumber numberWithLongLong:session.sessionId] uploadDictionary:uploadDictionary];
+    MPUpload *upload = [[MPUpload alloc] initWithSessionId:[NSNumber numberWithLongLong:session.sessionId] uploadDictionary:uploadDictionary dataPlanId:@"test" dataPlanVersion:@(1)];
     XCTAssertNotNil(upload, @"Should not have been nil.");
     
     NSString *description = [upload description];

@@ -3,7 +3,7 @@
 #import "MPPersistenceController.h"
 #import "MPIUserDefaults.h"
 #include "MPHasher.h"
-#import "MParticle.h"
+#import "mParticle.h"
 #import "MPBackendController.h"
 #import "MPApplication.h"
 #import "MPStateMachine.h"
@@ -15,6 +15,7 @@
 
 @interface MParticle ()
 
++ (dispatch_queue_t)messageQueue;
 @property (nonatomic, strong, nonnull) MPBackendController *backendController;
 
 @end
@@ -57,19 +58,19 @@ static NSData *deviceToken = nil;
     NSData *oldDeviceToken = [deviceToken copy];
     
     deviceToken = devToken;
-    
-    dispatch_async(dispatch_get_main_queue(), ^{
+
+    dispatch_async([MParticle messageQueue], ^{
         NSMutableDictionary *deviceTokenDictionary = [[NSMutableDictionary alloc] initWithCapacity:2];
         NSString *newTokenString = nil;
         NSString *oldTokenString = nil;
         if (newDeviceToken) {
             deviceTokenDictionary[kMPRemoteNotificationDeviceTokenKey] = newDeviceToken;
-            newTokenString = [[NSString alloc] initWithData:newDeviceToken encoding:NSUTF8StringEncoding];
+            newTokenString = [MPIUserDefaults stringFromDeviceToken:newDeviceToken];
         }
         
         if (oldDeviceToken) {
             deviceTokenDictionary[kMPRemoteNotificationOldDeviceTokenKey] = oldDeviceToken;
-            oldTokenString = [[NSString alloc] initWithData:oldDeviceToken encoding:NSUTF8StringEncoding];
+            oldTokenString = [MPIUserDefaults stringFromDeviceToken:oldDeviceToken];
         }
 
         [[NSNotificationCenter defaultCenter] postNotificationName:kMPRemoteNotificationDeviceTokenNotification

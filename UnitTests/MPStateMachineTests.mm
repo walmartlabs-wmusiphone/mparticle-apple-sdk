@@ -4,7 +4,7 @@
 #import "MPConsumerInfo.h"
 #import "MPLaunchInfo.h"
 #import "MPBaseTestCase.h"
-#import "MParticle.h"
+#import "mParticle.h"
 #import "MPKitContainer.h"
 #import "OCMock.h"
 
@@ -14,7 +14,6 @@
 - (void)handleApplicationDidEnterBackground:(NSNotification *)notification;
 - (void)handleApplicationWillEnterForeground:(NSNotification *)notification;
 - (void)handleApplicationWillTerminate:(NSNotification *)notification;
-- (void)handleMemoryWarningNotification:(NSNotification *)notification;
 - (void)resetRampPercentage;
 - (void)resetTriggers;
 
@@ -171,7 +170,6 @@
     });
     
     [stateMachine handleApplicationWillTerminate:nil];
-    [stateMachine handleMemoryWarningNotification:nil];
     
     [self waitForExpectationsWithTimeout:1 handler:nil];
 }

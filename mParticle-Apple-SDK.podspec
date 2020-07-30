@@ -1,6 +1,6 @@
 Pod::Spec.new do |s|
     s.name             = "mParticle-Apple-SDK"
-    s.version          = "7.9.2"
+    s.version          = "7.16.2"
     s.summary          = "mParticle Apple SDK."
 
     s.description      = <<-DESC
@@ -46,7 +46,7 @@ Pod::Spec.new do |s|
         ss.public_header_files = `./Scripts/find_headers.rb --public`.split("\n")
 
         ss.preserve_paths       = 'mParticle-Apple-SDK', 'mParticle-Apple-SDK/**', 'mParticle-Apple-SDK/**/*'
-        ss.source_files         = 'mParticle-Apple-SDK/**/*'
+        ss.source_files         = 'mParticle-Apple-SDK/**/*.{h,m,mm,cpp}'
         ss.libraries            = 'c++', 'sqlite3', 'z'
 
         ss.ios.frameworks       = 'AdSupport', 'CoreGraphics', 'CoreLocation', 'CoreTelephony', 'Foundation', 'Security', 'SystemConfiguration', 'UIKit'
@@ -59,7 +59,7 @@ Pod::Spec.new do |s|
         ext.public_header_files = `./Scripts/find_headers.rb --public`.split("\n")
 
         ext.preserve_paths       = 'mParticle-Apple-SDK', 'mParticle-Apple-SDK/**', 'mParticle-Apple-SDK/**/*'
-        ext.source_files         = 'mParticle-Apple-SDK/**/*'
+        ext.source_files         = 'mParticle-Apple-SDK/**/*.{h,m,mm,cpp}'
         ext.libraries            = 'c++', 'sqlite3', 'z'
 
         ext.ios.frameworks       = 'AdSupport', 'CoreGraphics', 'CoreLocation', 'CoreTelephony', 'Foundation', 'Security', 'SystemConfiguration', 'UIKit'
